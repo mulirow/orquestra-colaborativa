@@ -72,7 +72,7 @@ function buildInterface() {
 buildInterface();
 
 // persistent cooldown on page reload
-if (Date.now() - lastClickTime < COOLDOWN_MS) {
+if (Date.now() - lastClickTime < COOLDOWN_MS && mode === 'LIVE') {
     startCooldownVisuals();
 }
 
