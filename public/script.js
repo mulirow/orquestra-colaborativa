@@ -54,14 +54,14 @@ function buildInterface() {
             cell.classList.add('cell');
             cell.id = `cell-${r}-${c}`;
             cell.addEventListener('click', () => {
-                const now = Date.now();
-                if (now - lastClickTime < COOLDOWN_MS) return;
-                lastClickTime = now;
-                localStorage.setItem('lastClickTime', lastClickTime);
-                
-                startCooldownVisuals();
-
-                if (mode === 'LIVE') socket.emit('toggle-note', { row: r, col: c });
+                if (mode === 'LIVE') {
+                    const now = Date.now();
+                    if (now - lastClickTime < COOLDOWN_MS) return;
+                    lastClickTime = now;
+                    localStorage.setItem('lastClickTime', lastClickTime);
+                    startCooldownVisuals();
+                    socket.emit('toggle-note', { row: r, col: c });
+                }
             });
             cellsDiv.appendChild(cell);
         }
