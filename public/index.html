@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Orquestra Colaborativa</title>
+
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+    <div style="display: flex; justify-content: space-between; width: 550px; align-items: center; margin-bottom: 10px;">
+        <h1 style="margin:0; font-size: 1.2rem;">Orquestra Colaborativa</h1>
+        <div id="statusText">AGUARDANDO INÍCIO...</div>
+    </div>
+
+    <div id="sequencer-container"></div>
+
+    <div id="controls">
+        <!-- Play / Pause -->
+        <div class="control-section">
+            <button id="audioToggleBtn" class="btn-play">INICIAR ÁUDIO 🔊</button>
+            <div style="font-size: 0.8rem; color: #888;">BPM: 120</div>
+        </div>
+
+        <!-- Time Machine -->
+        <div class="control-section">
+            <div style="display: flex; flex-direction: column; gap: 10px; width: 100%;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-size: 0.9rem; font-weight: bold; color: #ddd;">Time Machine</span>
+                    <span id="replayCounter" style="font-size: 0.7rem; color: #666;">Histórico: 0 estados</span>
+                </div>
+
+                <div style="display: flex; gap: 10px; align-items: center;">
+                    <button id="linearReplayBtn" disabled>Histórico Visual ⏩</button>
+
+                    <div class="slider-container">
+                        <span>Lento</span>
+                        <input type="range" id="speedRange" min="1" max="20" value="10">
+                        <span>Rápido</span>
+                    </div>
+                </div>
+
+                <div style="display: flex; gap: 10px; align-items: center; margin-top: 5px;">
+                    <button id="cyclicReplayBtn" disabled>Timelapse 🎵</button>
+                </div>
+
+                <div id="replayBar">
+                    <div id="replayProgress"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <script src="script.js"></script>
+
+</body>
+
+</html>
