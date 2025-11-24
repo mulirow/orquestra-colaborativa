@@ -49,6 +49,14 @@ body {
 .cell:hover { background-color: #444; }
 .cell.active { background-color: #00ff9d; box-shadow: 0 0 8px #00ff9daa; }
 
+.cooldown-active .cell {
+    cursor: not-allowed;
+    opacity: 0.5;
+}
+.cooldown-active .cell:hover {
+    background-color: #333; /* Remove hover effect */
+}
+
 .seq-row.snare .cell.active { background-color: #ff0055; box-shadow: 0 0 8px #ff0055aa; }
 .seq-row.kick .cell.active { background-color: #ff9900; box-shadow: 0 0 8px #ff9900aa; }
 .seq-row.snare { margin-top: 15px; }
