@@ -20,6 +20,8 @@ body {
     display: flex;
     flex-direction: column;
     gap: 4px;
+    max-width: 100%;
+    box-sizing: border-box;
 }
 
 .seq-row { display: flex; align-items: center; gap: 5px; }
@@ -59,7 +61,8 @@ body {
     background: #2a2a2a;
     padding: 20px;
     border-radius: 8px;
-    width: 550px;
+    width: 100%;
+    max-width: 550px;
     box-sizing: border-box;
     border: 1px solid #444;
 }
@@ -113,3 +116,137 @@ input[type=range] { cursor: pointer; }
 }
 
 #statusText { font-size: 0.8rem; color: #00ff9d; font-weight: bold; }
+
+/* ==================== RESPONSIVE DESIGN ==================== */
+
+/* Tablets e telas médias */
+@media (max-width: 768px) {
+    body {
+        padding: 10px;
+    }
+
+    #sequencer-container {
+        padding: 15px;
+    }
+
+    #controls {
+        padding: 15px;
+    }
+
+    .cell {
+        width: 20px;
+        height: 20px;
+    }
+
+    .row-label {
+        width: 50px;
+        font-size: 0.7rem;
+    }
+
+    .control-section {
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+    .slider-container {
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+}
+
+/* Mobile pequeno */
+@media (max-width: 480px) {
+    body {
+        padding: 5px;
+        min-height: 100vh;
+        justify-content: flex-start;
+        padding-top: 20px;
+    }
+
+    h1 {
+        font-size: 1rem !important;
+    }
+
+    #statusText {
+        font-size: 0.7rem !important;
+    }
+
+    #sequencer-container {
+        padding: 10px;
+        gap: 3px;
+    }
+
+    .cell {
+        width: 15px;
+        height: 15px;
+        border-radius: 2px;
+    }
+
+    .row-label {
+        width: 40px;
+        font-size: 0.65rem;
+        padding-right: 5px;
+    }
+
+    .row-cells {
+        gap: 3px;
+    }
+
+    .seq-row {
+        gap: 3px;
+    }
+
+    #controls {
+        padding: 12px;
+        margin-top: 15px;
+    }
+
+    .control-section {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+        margin-bottom: 12px;
+        padding-bottom: 12px;
+    }
+
+    button {
+        width: 100%;
+        padding: 10px;
+        font-size: 0.75rem;
+    }
+
+    .slider-container {
+        width: 100%;
+        flex-direction: column;
+        gap: 5px;
+    }
+
+    #speedRange {
+        width: 100%;
+    }
+}
+
+/* Mobile muito pequeno */
+@media (max-width: 360px) {
+    .cell {
+        width: 12px;
+        height: 12px;
+    }
+
+    .row-label {
+        width: 35px;
+        font-size: 0.6rem;
+    }
+
+    .row-cells {
+        gap: 2px;
+    }
+
+    .seq-row {
+        gap: 2px;
+    }
+
+    h1 {
+        font-size: 0.9rem !important;
+    }
+}
