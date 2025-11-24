@@ -278,8 +278,8 @@ cyclicBtn.addEventListener('click', () => {
 
 function startCooldownVisuals() {
     containerDiv.classList.add('cooldown-active');
-    
-    let remaining = COOLDOWN_MS / 1000;
+    const elapsed = Date.now() - lastClickTime;
+    let remaining = Math.ceil((COOLDOWN_MS - elapsed) / 1000);
     statusText.innerText = `COOLDOWN (${remaining}s) ⏳`;
     statusText.style.color = "#ff4444";
 
