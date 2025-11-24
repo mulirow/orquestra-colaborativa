@@ -290,7 +290,7 @@ function startCooldownVisuals() {
         if (remaining <= 0) {
             clearInterval(cooldownInterval);
             containerDiv.classList.remove('cooldown-active');
-            statusText.innerText = "LIVE 🟢";
+            statusText.innerText = "LIVE 🔴";
             statusText.style.color = "#00ff9d";
         } else {
             statusText.innerText = `COOLDOWN (${remaining}s) ⏳`;
