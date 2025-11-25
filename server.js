@@ -1,57 +1,49 @@
+/**
+ * @fileoverview Servidor principal da Orquestra Colaborativa
+ * @description Aplicação de música colaborativa em tempo real usando Socket.IO
+ */
+
 const express = require('express');
 const http = require('http');
-const { Server } = require("socket.io");
+const { Server } = require('socket.io');
 const path = require('path');
+
+const config = require('./server/config');
+const roomManager = require('./server/roomManager');
+const { setupSocketHandlers } = require('./server/socketHandlers');
+
+// ==================== SETUP DO SERVIDOR ====================
 
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 
+// Serve arquivos estáticos
 app.use(express.static(path.join(__dirname, 'public')));
 
-// CONFIGURAÇÃO DO GRID
-// 10 Linhas: 8 Melódicas + 2 Bateria
-const ROWS = 10;
-const COLS = 16;
+// ==================== INICIALIZAÇÃO ====================
 
-// Inicializa a Matriz
-let gridState = Array(ROWS).fill().map(() => Array(COLS).fill(0));
+/**
+ * Inicializa o servidor e recursos
+ */
+function initialize() {
+    // Cria salas padrão
+    roomManager.initializeDefaultRooms(config.DEFAULT_ROOMS);
 
-// Histórico para o Timelapse
-let history = [JSON.parse(JSON.stringify(gridState))];
+    // Configura event handlers do Socket.IO
+    io.on('connection', (socket) => setupSocketHandlers(io, socket));
 
-io.on('connection', (socket) => {
-    console.log('Um usuário conectou:', socket.id);
-
-    // Envia estado inicial
-    socket.emit('initial-state', { grid: gridState, history: history });
-
-    socket.on('toggle-note', (data) => {
-        const { row, col } = data;
-
-        if (row < 0 || row >= ROWS || col < 0 || col >= COLS) {
-            console.warn(`Tentativa inválida de acesso: Row ${row}, Col ${col}`);
-            return;
-        }
-
-        gridState[row][col] = gridState[row][col] ? 0 : 1;
-
-        // Salva Snapshot
-        history.push(JSON.parse(JSON.stringify(gridState)));
-
-        io.emit('update-note', {
-            row,
-            col,
-            active: gridState[row][col]
-        });
+    // Inicia servidor HTTP
+    server.listen(config.PORT, () => {
+        console.log(`Orquestra Colaborativa rodando em http://localhost:${config.PORT}`);
+        console.log(`Grid configurado: ${config.ROWS}x${config.COLS}`);
+        console.log(`Salas iniciais: ${config.DEFAULT_ROOMS.join(', ')}`);
     });
+}
 
-    socket.on('disconnect', () => {
-        console.log('Usuário desconectou');
-    });
-});
+// ==================== START ====================
 
-const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
-    console.log(`Orquestra rodando em http://localhost:${PORT}`);
-});
+initialize();
+
+// Exporta para testes (opcional)
+module.exports = { app, server, io };

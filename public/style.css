@@ -11,36 +11,58 @@ body {
     user-select: none;
 }
 
+#home-container {
+    margin: 24px;
+}
+
+.title-container {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
 #sequencer-container {
     background: #222;
-    padding: 20px;
+    padding: clamp(10px, 2vw, 20px);
     border-radius: 8px;
     border: 1px solid #444;
     box-shadow: 0 10px 30px rgba(0,0,0,0.5);
     display: flex;
     flex-direction: column;
     gap: 4px;
-    max-width: 100%;
+    width: 100%;
+    max-width: min(1800px, 95vw);
     box-sizing: border-box;
+    overflow-x: auto;
+    overflow-y: visible;
 }
 
-.seq-row { display: flex; align-items: center; gap: 5px; }
+.seq-row {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    min-width: max-content; /* Garante que a linha não encolha */
+}
 
 .row-label {
-    width: 60px;
+    min-width: 50px;
+    width: clamp(50px, 8vw, 80px);
     text-align: right;
-    padding-right: 10px;
-    font-size: 0.75rem;
+    padding-right: clamp(5px, 1vw, 10px);
+    font-size: clamp(0.6rem, 1.5vw, 0.75rem);
     color: #888;
     font-weight: bold;
     font-family: monospace;
 }
 
-.row-cells { display: grid; grid-template-columns: repeat(16, 1fr); gap: 4px; }
+.row-cells { display: grid; grid-template-columns: repeat(32, 1fr); gap: 4px; }
 
 .cell {
-    width: 25px;
-    height: 25px;
+    aspect-ratio: 1;
+    min-width: 20px;
+    max-width: 60px;
+    width: clamp(20px, 3vw, 60px);
+    height: auto;
     background-color: #333;
     border-radius: 3px;
     cursor: pointer;
@@ -65,12 +87,12 @@ body {
 .playing-col { filter: brightness(2); border: 1px solid rgba(255,255,255,0.8); }
 
 #controls {
-    margin-top: 20px;
+    margin-top: clamp(10px, 2vw, 20px);
     background: #2a2a2a;
-    padding: 20px;
+    padding: clamp(10px, 2vw, 20px);
     border-radius: 8px;
     width: 100%;
-    max-width: 550px;
+    max-width: min(550px, 95vw);
     box-sizing: border-box;
     border: 1px solid #444;
 }
@@ -125,12 +147,349 @@ input[type=range] { cursor: pointer; }
 
 #statusText { font-size: 0.8rem; color: #00ff9d; font-weight: bold; }
 
+/* ==================== MODAL DE SALAS ==================== */
+.modal {
+    display: flex;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.9);
+    align-items: center;
+    justify-content: center;
+}
+
+.modal.hidden {
+    display: none;
+}
+
+.modal-content {
+    background-color: #2a2a2a;
+    padding: 30px;
+    border: 2px solid #00ff9d;
+    border-radius: 10px;
+    max-width: 500px;
+    width: 90%;
+    box-shadow: 0 0 30px rgba(0, 255, 157, 0.3);
+}
+
+.room-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.room-item {
+    background: #333;
+    padding: 15px;
+    border-radius: 6px;
+    border: 1px solid #555;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.room-item:hover {
+    background: #444;
+    border-color: #00ff9d;
+    transform: translateX(5px);
+}
+
+.room-item-name {
+    font-weight: bold;
+    font-size: 1rem;
+    color: #eee;
+}
+
+.room-item-users {
+    font-size: 0.85rem;
+    color: #888;
+}
+
+.qr-btn {
+    padding: 6px 12px;
+    background: #007acc;
+    border-color: #005c99;
+    font-size: 0.85rem;
+}
+
+.qr-btn:hover:not(:disabled) {
+    background: #008ae6;
+}
+
+.btn-view-rooms {
+    padding: 6px 12px;
+    background: #555;
+    border-color: #666;
+    font-size: 0.85rem;
+}
+
+.btn-view-rooms:hover:not(:disabled) {
+    background: #666;
+}
+
+/* ==================== ESTILOS ADICIONAIS ==================== */
+
+/* Modal de salas - título */
+.modal-content h2 {
+    margin-top: 0;
+    color: #00ff9d;
+    text-align: center;
+}
+
+/* Modal de salas - parágrafo */
+.modal-content p {
+    text-align: center;
+    color: #aaa;
+    margin-bottom: 25px;
+}
+
+/* Modal de salas - subtítulos */
+.modal-content h3 {
+    font-size: 1rem;
+    color: #ddd;
+    margin-bottom: 10px;
+}
+
+.modal-content h3.small {
+    font-size: 0.9rem;
+}
+
+/* Container de criação de sala */
+.create-room-section {
+    margin-top: 20px;
+    border-top: 1px solid #444;
+    padding-top: 15px;
+}
+
+.create-room-input-container {
+    display: flex;
+    gap: 10px;
+}
+
+#newRoomInput {
+    flex: 1;
+    padding: 10px;
+    background: #333;
+    border: 1px solid #555;
+    color: white;
+    border-radius: 4px;
+}
+
+/* Título principal */
+h1 {
+    margin: 0;
+    font-size: 1.2rem;
+}
+
+/* Container de informações da sala */
+.room-info-container {
+    display: flex;
+    justify-content: flex-end;
+    width: 100%;
+    max-width: min(1800px, 95vw);
+    align-items: center;
+    margin-bottom: clamp(5px, 1vw, 10px);
+    padding: 0 clamp(5px, 1vw, 10px);
+    box-sizing: border-box;
+    flex-wrap: wrap;
+    gap: clamp(5px, 1vw, 10px);
+}
+
+.qr-btn.hidden {
+    display: none;
+}
+
+.user-info-container {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 3px;
+    width: 200px;
+}
+
+#currentRoomName {
+    font-size: 0.7rem;
+    color: #666;
+}
+
+#currentRoomName.active {
+    color: #00ff9d;
+}
+
+#userCount {
+    font-size: 0.75rem;
+    color: #888;
+}
+
+#userCount.active {
+    color: #00ff9d;
+}
+
+/* Modal QR Code */
+#qrModal .modal-content {
+    text-align: center;
+}
+
+.qr-modal-description {
+    margin-bottom: 20px;
+}
+
+#qrCodeContainer {
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    display: inline-block;
+    margin-bottom: 15px;
+}
+
+.qr-url-section {
+    margin-top: 15px;
+}
+
+#roomUrlInput {
+    width: 90%;
+    padding: 10px;
+    background: #333;
+    border: 1px solid #555;
+    color: white;
+    border-radius: 4px;
+    margin-bottom: 10px;
+    text-align: center;
+}
+
+#copyUrlBtn.full-width {
+    width: 100%;
+}
+
+#closeQrBtn {
+    margin-top: 15px;
+    width: 100%;
+}
+
+/* Controls */
+#controls.full-width {
+    max-width: min(1800px, 95vw);
+}
+
+.control-section-content {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: 100%;
+}
+
+.control-section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.control-section-title {
+    font-size: 0.9rem;
+    font-weight: bold;
+    color: #ddd;
+}
+
+#replayCounter {
+    font-size: 0.7rem;
+    color: #666;
+}
+
+.control-section-buttons {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.control-section-buttons.margin-top {
+    margin-top: 5px;
+}
+
+.bpm-display {
+    font-size: 0.8rem;
+    color: #888;
+}
+
+/* Mensagem de nenhuma sala */
+.no-rooms-message {
+    color: #888;
+    text-align: center;
+}
+
+/* Mensagem de erro */
+.error-message {
+    color: #ff4444;
+    text-align: center;
+    padding: 10px;
+    background: rgba(255, 68, 68, 0.1);
+    border: 1px solid #ff4444;
+    border-radius: 4px;
+    margin-bottom: 10px;
+    display: none;
+}
+
+/* Modal de sala existente */
+.room-exists-message {
+    color: #aaa;
+    margin-bottom: 20px;
+    text-align: center;
+}
+
+#existingRoomName {
+    color: #00ff9d;
+    font-weight: bold;
+}
+
+#existingRoomUsers {
+    color: #00ff9d;
+    font-weight: bold;
+}
+
+.modal-buttons {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    margin-top: 20px;
+}
+
+.modal-buttons button {
+    flex: 1;
+    max-width: 200px;
+}
+
+/* Seção de fechar modal quando já está em uma sala */
+.close-modal-section {
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid #444;
+    text-align: center;
+}
+
+.close-modal-section.hidden {
+    display: none;
+}
+
+#closeRoomModalBtn {
+    width: 100%;
+    max-width: 300px;
+}
+
 /* ==================== RESPONSIVE DESIGN ==================== */
 
 /* Tablets e telas médias */
 @media (max-width: 768px) {
+
     body {
         padding: 10px;
+    }
+
+    #home-container {
+        margin: 24px;
     }
 
     #sequencer-container {
@@ -142,13 +501,14 @@ input[type=range] { cursor: pointer; }
     }
 
     .cell {
-        width: 20px;
-        height: 20px;
+        min-width: 18px;
+        max-width: 35px;
     }
 
     .row-label {
-        width: 50px;
-        font-size: 0.7rem;
+        min-width: 40px;
+        width: clamp(40px, 10vw, 60px);
+        font-size: clamp(0.6rem, 2vw, 0.7rem);
     }
 
     .control-section {
@@ -160,6 +520,21 @@ input[type=range] { cursor: pointer; }
         flex-wrap: wrap;
         justify-content: center;
     }
+
+    .modal-content {
+        padding: 20px;
+        width: 95%;
+        margin: 20px;
+    }
+
+    .qr-btn {
+        font-size: 0.75rem;
+        padding: 8px 12px;
+    }
+
+    h1 {
+        font-size: 1.1rem !important;
+    }
 }
 
 /* Mobile pequeno */
@@ -168,45 +543,57 @@ input[type=range] { cursor: pointer; }
         padding: 5px;
         min-height: 100vh;
         justify-content: flex-start;
-        padding-top: 20px;
+        padding-top: 10px;
+    }
+
+    #home-container {
+        margin: 8px;
+        width: 100%;
     }
 
     h1 {
-        font-size: 1rem !important;
+        font-size: 0.95rem !important;
+        text-align: center;
+        width: 100%;
     }
 
     #statusText {
-        font-size: 0.7rem !important;
+        font-size: 0.65rem !important;
+    }
+
+    #currentRoomName, #userCount {
+        font-size: 0.65rem !important;
     }
 
     #sequencer-container {
-        padding: 10px;
-        gap: 3px;
+        padding: 8px;
+        gap: 2px;
     }
 
     .cell {
-        width: 15px;
-        height: 15px;
+        min-width: 14px;
+        max-width: 20px;
         border-radius: 2px;
     }
 
     .row-label {
-        width: 40px;
-        font-size: 0.65rem;
-        padding-right: 5px;
+        min-width: 30px;
+        width: clamp(30px, 8vw, 40px);
+        font-size: clamp(0.5rem, 1.5vw, 0.6rem);
+        padding-right: 4px;
     }
 
     .row-cells {
-        gap: 3px;
+        gap: 2px;
     }
 
     .seq-row {
-        gap: 3px;
+        gap: 2px;
     }
 
     #controls {
-        padding: 12px;
-        margin-top: 15px;
+        padding: 10px;
+        margin-top: 12px;
     }
 
     .control-section {
@@ -232,29 +619,70 @@ input[type=range] { cursor: pointer; }
     #speedRange {
         width: 100%;
     }
+
+    .modal-content {
+        padding: 15px;
+        width: 95%;
+        max-width: 100%;
+    }
+
+    .modal-content h2 {
+        font-size: 1.1rem;
+    }
+
+    .modal-content h3 {
+        font-size: 0.85rem;
+    }
+
+    .modal-content p {
+        font-size: 0.8rem;
+    }
+
+    .room-item {
+        padding: 12px;
+    }
+
+    .room-item-name {
+        font-size: 0.9rem;
+    }
+
+    .qr-btn {
+        width: auto;
+        font-size: 0.7rem;
+        padding: 6px 10px;
+    }
 }
 
 /* Mobile muito pequeno */
 @media (max-width: 360px) {
     .cell {
-        width: 12px;
-        height: 12px;
+        min-width: 12px;
+        max-width: 16px;
     }
 
     .row-label {
-        width: 35px;
-        font-size: 0.6rem;
+        min-width: 25px;
+        width: clamp(25px, 7vw, 35px);
+        font-size: clamp(0.5rem, 1.2vw, 0.55rem);
     }
 
     .row-cells {
-        gap: 2px;
+        gap: 1px;
     }
 
     .seq-row {
-        gap: 2px;
+        gap: 1px;
     }
 
     h1 {
-        font-size: 0.9rem !important;
+        font-size: 0.85rem !important;
+    }
+
+    .modal-content h2 {
+        font-size: 1rem;
+    }
+
+    #home-container {
+        margin: 4px;
     }
 }
