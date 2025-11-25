@@ -2,7 +2,7 @@ const socket = io();
 
 // --- Configuração ---
 const rows = 10;
-const cols = 16;
+const cols = 32; // Aumentado de 16 para 32 colunas
 const scaleLabels = ["C5", "A4", "G4", "E4", "D4", "C4", "A3", "G3", "SNARE", "KICK"];
 const scaleNotes = ["C5", "A4", "G4", "E4", "D4", "C4", "A3", "G3"];
 
@@ -32,6 +32,242 @@ const speedRange = document.getElementById('speedRange');
 const replayProgress = document.getElementById('replayProgress');
 const statusText = document.getElementById('statusText');
 const replayCounter = document.getElementById('replayCounter');
+const userCountEl = document.getElementById('userCount');
+const roomModal = document.getElementById('roomModal');
+const roomListEl = document.getElementById('roomList');
+const newRoomInput = document.getElementById('newRoomInput');
+const createRoomBtn = document.getElementById('createRoomBtn');
+const currentRoomNameEl = document.getElementById('currentRoomName');
+const qrCodeBtn = document.getElementById('qrCodeBtn');
+const qrModal = document.getElementById('qrModal');
+const qrCodeContainer = document.getElementById('qrCodeContainer');
+const roomUrlInput = document.getElementById('roomUrlInput');
+const copyUrlBtn = document.getElementById('copyUrlBtn');
+const closeQrBtn = document.getElementById('closeQrBtn');
+const roomExistsModal = document.getElementById('roomExistsModal');
+const existingRoomNameEl = document.getElementById('existingRoomName');
+const existingRoomUsersEl = document.getElementById('existingRoomUsers');
+const joinExistingRoomBtn = document.getElementById('joinExistingRoomBtn');
+const cancelRoomExistsBtn = document.getElementById('cancelRoomExistsBtn');
+const viewRoomsBtn = document.getElementById('viewRoomsBtn');
+const closeRoomModalSection = document.getElementById('closeRoomModalSection');
+const closeRoomModalBtn = document.getElementById('closeRoomModalBtn');
+
+let currentRoom = null;
+let qrCodeInstance = null;
+let pendingRoomName = null;
+
+// --- Gestão de Salas ---
+socket.on('room-list', (rooms) => {
+    console.log('[CLIENTE] Lista de salas recebida do servidor:', rooms);
+    console.log('[CLIENTE] Total de salas recebidas:', rooms ? rooms.length : 0);
+    
+    const isModalVisible = !roomModal.classList.contains('hidden');
+    console.log('[CLIENTE] Modal visível?', isModalVisible);
+
+    // Sempre atualiza a lista, mas só mostra se o modal estiver visível
+    roomListEl.innerHTML = '';
+
+    if (!rooms || rooms.length === 0) {
+        console.log('[CLIENTE] Nenhuma sala disponível');
+        roomListEl.innerHTML = '<p class="no-rooms-message">Nenhuma sala disponível. Crie uma nova!</p>';
+        return;
+    }
+
+    console.log('[CLIENTE] Renderizando salas na lista:');
+    rooms.forEach((room, index) => {
+        console.log(`   ${index + 1}. ${room.name} - ${room.users} usuário(s) online`);
+        const roomItem = document.createElement('div');
+        roomItem.className = 'room-item';
+        roomItem.innerHTML = `
+            <span class="room-item-name">${room.name}</span>
+            <span class="room-item-users">${room.users} online</span>
+        `;
+        roomItem.addEventListener('click', () => joinRoom(room.name));
+        roomListEl.appendChild(roomItem);
+    });
+
+    console.log('[CLIENTE] Lista de salas atualizada no DOM, total:', rooms.length);
+});
+
+// Solicita lista de salas quando o modal é mostrado
+function showRoomModal() {
+    console.log('[CLIENTE] Mostrando modal de salas');
+    roomModal.classList.remove('hidden');
+    
+    // Se já está em uma sala, mostra botão para fechar e continuar
+    if (currentRoom) {
+        closeRoomModalSection.classList.remove('hidden');
+    } else {
+        closeRoomModalSection.classList.add('hidden');
+    }
+    
+    console.log('[CLIENTE] Solicitando lista de salas ao servidor...');
+    socket.emit('request-room-list');
+}
+
+// Botão para ver salas
+viewRoomsBtn.addEventListener('click', () => {
+    showRoomModal();
+});
+
+// Botão para fechar modal e continuar na sala atual
+closeRoomModalBtn.addEventListener('click', () => {
+    roomModal.classList.add('hidden');
+    closeRoomModalSection.classList.add('hidden');
+});
+
+// Auto-join via URL parameter
+const urlParams = new URLSearchParams(window.location.search);
+const roomParam = urlParams.get('room');
+
+// Solicita lista ao conectar
+socket.on('connect', () => {
+    console.log('[CLIENTE] Conectado ao servidor');
+    
+    // Se tem room na URL, entra automaticamente (sem mostrar modal)
+    if (roomParam) {
+        setTimeout(() => {
+            console.log('Entrando automaticamente na sala:', roomParam);
+            joinRoom(roomParam);
+        }, 300);
+    } else if (!currentRoom) {
+        // Se não tem room na URL e não está em uma sala, mostra modal
+        console.log('[CLIENTE] Não está em uma sala, mostrando modal de salas...');
+        showRoomModal();
+    } else {
+        console.log('[CLIENTE] Já está na sala:', currentRoom);
+    }
+});
+
+createRoomBtn.addEventListener('click', () => {
+    const roomName = newRoomInput.value.trim();
+    
+    // Validação: nome vazio
+    if (!roomName) {
+        showErrorMessage('Por favor, digite um nome para a sala.');
+        return;
+    }
+    
+    // Verifica se a sala já existe
+    socket.emit('check-room-exists', roomName, (response) => {
+        if (response.exists) {
+            // Sala já existe - mostra popup
+            pendingRoomName = roomName;
+            existingRoomNameEl.innerText = roomName;
+            existingRoomUsersEl.innerText = response.userCount;
+            roomExistsModal.classList.remove('hidden');
+        } else {
+            // Sala não existe - cria e entra
+            joinRoom(roomName);
+            newRoomInput.value = '';
+        }
+    });
+});
+
+newRoomInput.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') {
+        createRoomBtn.click();
+    }
+});
+
+// Handlers do modal de sala existente
+joinExistingRoomBtn.addEventListener('click', () => {
+    if (pendingRoomName) {
+        joinRoom(pendingRoomName);
+        newRoomInput.value = '';
+        roomExistsModal.classList.add('hidden');
+        pendingRoomName = null;
+    }
+});
+
+cancelRoomExistsBtn.addEventListener('click', () => {
+    roomExistsModal.classList.add('hidden');
+    pendingRoomName = null;
+});
+
+// Função para mostrar mensagem de erro
+function showErrorMessage(message) {
+    // Cria ou atualiza mensagem de erro
+    let errorMsg = document.getElementById('roomErrorMsg');
+    if (!errorMsg) {
+        errorMsg = document.createElement('p');
+        errorMsg.id = 'roomErrorMsg';
+        errorMsg.className = 'error-message';
+        const createSection = document.querySelector('.create-room-section');
+        createSection.insertBefore(errorMsg, createSection.firstChild);
+    }
+    errorMsg.innerText = message;
+    errorMsg.style.display = 'block';
+    
+    // Remove mensagem após 3 segundos
+    setTimeout(() => {
+        if (errorMsg) {
+            errorMsg.style.display = 'none';
+        }
+    }, 3000);
+}
+
+// Remove mensagem de erro quando usuário começa a digitar
+newRoomInput.addEventListener('input', () => {
+    const errorMsg = document.getElementById('roomErrorMsg');
+    if (errorMsg) {
+        errorMsg.style.display = 'none';
+    }
+});
+
+function joinRoom(roomName) {
+    console.log('[CLIENTE] Entrando na sala:', roomName);
+    currentRoom = roomName;
+    socket.emit('join-room', roomName);
+    roomModal.classList.add('hidden');
+    closeRoomModalSection.classList.add('hidden');
+    currentRoomNameEl.innerText = `Sala: ${roomName}`;
+    currentRoomNameEl.classList.add('active');
+
+    // Mostra botão de QR Code
+    qrCodeBtn.classList.remove('hidden');
+    console.log('[CLIENTE] Entrou na sala:', roomName);
+}
+
+// --- QR Code ---
+qrCodeBtn.addEventListener('click', () => {
+    if (!currentRoom) return;
+
+    // Gera URL da sala com query parameter
+    const roomUrl = `${window.location.origin}${window.location.pathname}?room=${encodeURIComponent(currentRoom)}`;
+    roomUrlInput.value = roomUrl;
+
+    // Limpa QR Code anterior
+    qrCodeContainer.innerHTML = '';
+
+    // Gera novo QR Code
+    qrCodeInstance = new QRCode(qrCodeContainer, {
+        text: roomUrl,
+        width: 256,
+        height: 256,
+        colorDark: "#000000",
+        colorLight: "#ffffff",
+        correctLevel: QRCode.CorrectLevel.H
+    });
+
+    qrModal.classList.remove('hidden');
+});
+
+copyUrlBtn.addEventListener('click', () => {
+    roomUrlInput.select();
+    navigator.clipboard.writeText(roomUrlInput.value).then(() => {
+        copyUrlBtn.innerText = 'Copiado!';
+        setTimeout(() => {
+            copyUrlBtn.innerText = 'Copiar Link';
+        }, 2000);
+    });
+});
+
+closeQrBtn.addEventListener('click', () => {
+    qrModal.classList.add('hidden');
+});
+
 
 // --- 1. Interface ---
 function buildInterface() {
@@ -104,14 +340,24 @@ socket.on('update-note', ({ row, col, active }) => {
     }
 });
 
+socket.on('user-count', (count) => {
+    console.log('[CLIENTE] Contagem de usuários atualizada:', count, 'na sala:', currentRoom);
+    userCountEl.innerText = `${count} online`;
+    if (count > 1) {
+        userCountEl.classList.add('active');
+    } else {
+        userCountEl.classList.remove('active');
+    }
+});
+
 function updateUIState() {
     replayCounter.innerText = `Histórico: ${historyLog.length} versões`;
     const canReplay = isAudioStarted && mode === 'LIVE' && historyLog.length > 1;
     if (mode === 'LIVE') {
         linearBtn.disabled = !canReplay;
         cyclicBtn.disabled = !canReplay;
-        linearBtn.innerText = "Histórico Visual ⏩";
-        cyclicBtn.innerText = "Timelapse 🎵";
+        linearBtn.innerText = "Histórico Visual";
+        cyclicBtn.innerText = "Timelapse";
         linearBtn.classList.remove('btn-stop-replay');
         cyclicBtn.classList.remove('btn-stop-replay');
         replayProgress.style.width = '100%';
@@ -136,21 +382,21 @@ audioBtn.addEventListener('click', async () => {
 
         isAudioStarted = true;
         isPaused = false;
-        audioBtn.innerText = "PAUSAR ⏸";
-        statusText.innerText = "LIVE 🔴";
+        audioBtn.innerText = "PAUSAR";
+        statusText.innerText = "LIVE";
         updateUIState();
     } else {
         if (isPaused) {
             resetCursor();
             Tone.Transport.start();
-            audioBtn.innerText = "PAUSAR ⏸";
-            statusText.innerText = (mode === 'LIVE') ? "LIVE 🔴" : "REPLAY ⏪";
+            audioBtn.innerText = "PAUSAR";
+            statusText.innerText = (mode === 'LIVE') ? "LIVE" : "REPLAY";
             statusText.style.color = (mode === 'LIVE') ? "#00ff9d" : "#ff9900";
             isPaused = false;
         } else {
             Tone.Transport.pause();
-            audioBtn.innerText = "CONTINUAR ▶";
-            statusText.innerText = "PAUSADO ⏸";
+            audioBtn.innerText = "CONTINUAR";
+            statusText.innerText = "PAUSADO";
             statusText.style.color = "#aaa";
             isPaused = true;
         }
@@ -175,7 +421,7 @@ function onStep(time) {
         if (cyclicStopRequest) {
             endReplay();
         } else {
-            replayIndex += 4;
+            replayIndex += 8; // Aumentado de 4 para 8 - timelapse 2x mais rápido
             if (replayIndex >= historyLog.length - 1) {
                 replayIndex = historyLog.length - 1;
                 cyclicStopRequest = true;
@@ -218,7 +464,7 @@ function updateProgressBar(index) {
 function endReplay() {
     clearTimeout(linearTimeout);
     mode = 'LIVE';
-    statusText.innerText = "LIVE 🔴";
+            statusText.innerText = "LIVE";
     statusText.style.color = "#00ff9d";
     renderGrid(currentGrid);
     updateUIState();
@@ -228,9 +474,9 @@ linearBtn.addEventListener('click', () => {
     if (mode === 'LINEAR_REPLAY') { endReplay(); return; }
 
     mode = 'LINEAR_REPLAY';
-    statusText.innerText = "HISTÓRICO VISUAL ⏩";
+    statusText.innerText = "HISTÓRICO VISUAL";
     statusText.style.color = "#00d2ff";
-    linearBtn.innerText = "PARAR ⏹";
+    linearBtn.innerText = "PARAR";
     linearBtn.classList.add('btn-stop-replay');
     cyclicBtn.disabled = true;
 
@@ -262,9 +508,9 @@ cyclicBtn.addEventListener('click', () => {
     }
 
     mode = 'CYCLIC_REPLAY';
-    statusText.innerText = "TIMELAPSE 🎵";
+    statusText.innerText = "TIMELAPSE";
     statusText.style.color = "#ff9900";
-    cyclicBtn.innerText = "PARAR / PULAR PARA LIVE ⏹";
+    cyclicBtn.innerText = "PARAR / PULAR PARA LIVE";
     cyclicBtn.classList.add('btn-stop-replay');
     linearBtn.disabled = true;
 
@@ -280,7 +526,7 @@ function startCooldownVisuals() {
     containerDiv.classList.add('cooldown-active');
     const elapsed = Date.now() - lastClickTime;
     let remaining = Math.ceil((COOLDOWN_MS - elapsed) / 1000);
-    statusText.innerText = `COOLDOWN (${remaining}s) ⏳`;
+    statusText.innerText = `Aguarde (${remaining}s)`;
     statusText.style.color = "#ff4444";
 
     if (cooldownInterval) clearInterval(cooldownInterval);
@@ -290,10 +536,10 @@ function startCooldownVisuals() {
         if (remaining <= 0) {
             clearInterval(cooldownInterval);
             containerDiv.classList.remove('cooldown-active');
-            statusText.innerText = "LIVE 🔴";
+            statusText.innerText = "LIVE";
             statusText.style.color = "#00ff9d";
         } else {
-            statusText.innerText = `COOLDOWN (${remaining}s) ⏳`;
+            statusText.innerText = `Aguarde (${remaining}s)`;
         }
     }, 1000);
 }
