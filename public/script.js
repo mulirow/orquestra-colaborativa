@@ -20,6 +20,10 @@ let replayIndex = 0;
 let linearTimeout = null;
 let cyclicStopRequest = false;
 
+let lastClickTime = parseInt(localStorage.getItem('lastClickTime')) || 0;
+const COOLDOWN_MS = 15000;
+let cooldownInterval = null;
+
 const containerDiv = document.getElementById('sequencer-container');
 const audioBtn = document.getElementById('audioToggleBtn');
 const linearBtn = document.getElementById('linearReplayBtn');
@@ -50,7 +54,14 @@ function buildInterface() {
             cell.classList.add('cell');
             cell.id = `cell-${r}-${c}`;
             cell.addEventListener('click', () => {
-                if (mode === 'LIVE') socket.emit('toggle-note', { row: r, col: c });
+                if (mode === 'LIVE') {
+                    const now = Date.now();
+                    if (now - lastClickTime < COOLDOWN_MS) return;
+                    lastClickTime = now;
+                    localStorage.setItem('lastClickTime', lastClickTime);
+                    startCooldownVisuals();
+                    socket.emit('toggle-note', { row: r, col: c });
+                }
             });
             cellsDiv.appendChild(cell);
         }
@@ -59,6 +70,11 @@ function buildInterface() {
     }
 }
 buildInterface();
+
+// persistent cooldown on page reload
+if (Date.now() - lastClickTime < COOLDOWN_MS && mode === 'LIVE') {
+    startCooldownVisuals();
+}
 
 function renderGrid(gridData) {
     for (let r = 0; r < rows; r++) {
@@ -259,3 +275,25 @@ cyclicBtn.addEventListener('click', () => {
     renderGrid(playbackGrid);
     updateProgressBar(0);
 });
+
+function startCooldownVisuals() {
+    containerDiv.classList.add('cooldown-active');
+    const elapsed = Date.now() - lastClickTime;
+    let remaining = Math.ceil((COOLDOWN_MS - elapsed) / 1000);
+    statusText.innerText = `COOLDOWN (${remaining}s) ⏳`;
+    statusText.style.color = "#ff4444";
+
+    if (cooldownInterval) clearInterval(cooldownInterval);
+
+    cooldownInterval = setInterval(() => {
+        remaining--;
+        if (remaining <= 0) {
+            clearInterval(cooldownInterval);
+            containerDiv.classList.remove('cooldown-active');
+            statusText.innerText = "LIVE 🔴";
+            statusText.style.color = "#00ff9d";
+        } else {
+            statusText.innerText = `COOLDOWN (${remaining}s) ⏳`;
+        }
+    }, 1000);
+}
