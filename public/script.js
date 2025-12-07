@@ -262,25 +262,3 @@ cyclicBtn.addEventListener('click', () => {
     renderGrid(playbackGrid);
     updateProgressBar(0);
 });
-
-function startCooldownVisuals() {
-    containerDiv.classList.add('cooldown-active');
-    const elapsed = Date.now() - lastClickTime;
-    let remaining = Math.ceil((COOLDOWN_MS - elapsed) / 1000);
-    statusText.innerText = `COOLDOWN (${remaining}s) ⏳`;
-    statusText.style.color = "#ff4444";
-
-    if (cooldownInterval) clearInterval(cooldownInterval);
-
-    cooldownInterval = setInterval(() => {
-        remaining--;
-        if (remaining <= 0) {
-            clearInterval(cooldownInterval);
-            containerDiv.classList.remove('cooldown-active');
-            statusText.innerText = "LIVE 🔴";
-            statusText.style.color = "#00ff9d";
-        } else {
-            statusText.innerText = `COOLDOWN (${remaining}s) ⏳`;
-        }
-    }, 1000);
-}
