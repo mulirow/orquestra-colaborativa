@@ -20,9 +20,6 @@ let replayIndex = 0;
 let linearTimeout = null;
 let cyclicStopRequest = false;
 
-let lastClickTime = parseInt(localStorage.getItem('lastClickTime')) || 0;
-const COOLDOWN_MS = 15000;
-let cooldownInterval = null;
 
 const containerDiv = document.getElementById('sequencer-container');
 const audioBtn = document.getElementById('audioToggleBtn');
@@ -55,11 +52,6 @@ function buildInterface() {
             cell.id = `cell-${r}-${c}`;
             cell.addEventListener('click', () => {
                 if (mode === 'LIVE') {
-                    const now = Date.now();
-                    if (now - lastClickTime < COOLDOWN_MS) return;
-                    lastClickTime = now;
-                    localStorage.setItem('lastClickTime', lastClickTime);
-                    startCooldownVisuals();
                     socket.emit('toggle-note', { row: r, col: c });
                 }
             });
@@ -70,11 +62,6 @@ function buildInterface() {
     }
 }
 buildInterface();
-
-// persistent cooldown on page reload
-if (Date.now() - lastClickTime < COOLDOWN_MS && mode === 'LIVE') {
-    startCooldownVisuals();
-}
 
 function renderGrid(gridData) {
     for (let r = 0; r < rows; r++) {
