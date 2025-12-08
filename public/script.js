@@ -8,7 +8,7 @@ const scaleNotes = ["C5", "A4", "G4", "E4", "D4", "C4", "A3", "G3"];
 
 // --- Estado ---
 let currentGrid = Array(rows).fill().map(() => Array(cols).fill(0));
-let historyLog = [];
+let historyLog = [];  // Now stores actions: [{row, col, active, timestamp}, ...]
 let playbackGrid = [];
 
 let mode = 'LIVE';
@@ -137,21 +137,28 @@ function renderGrid(gridData) {
 socket.on('initial-state', (data) => {
     currentGrid = data.grid;
     historyLog = data.history;
+    resetReplayCache();  // Reset cache when receiving initial state
     if (mode === 'LIVE') renderGrid(currentGrid);
     updateUIState();
 });
 
 socket.on('update-note', ({ row, col, active }) => {
     currentGrid[row][col] = active;
-    historyLog.push(JSON.parse(JSON.stringify(currentGrid)));
+    // Don't push to history here - server is the source of truth
+    // History will be synced via 'history-update' event
     if (mode === 'LIVE') {
         renderGrid(currentGrid);
-        updateUIState();
     }
 });
 
+socket.on('history-update', (history) => {
+    historyLog = history;
+    resetReplayCache();  // Reset cache when history changes
+    updateUIState();
+});
+
 function updateUIState() {
-    replayCounter.innerText = `Histórico: ${historyLog.length} versões`;
+    replayCounter.innerText = `Histórico: ${historyLog.length} ações`;
     const canReplay = isAudioStarted && mode === 'LIVE' && historyLog.length > 1;
     if (mode === 'LIVE') {
         linearBtn.disabled = !canReplay;
@@ -162,6 +169,52 @@ function updateUIState() {
         cyclicBtn.classList.remove('btn-stop-replay');
         replayProgress.style.width = '100%';
     }
+}
+
+// Cache for incremental reconstruction
+let cachedReplayGrid = null;
+let cachedReplayIndex = -1;
+
+// Helper function to reconstruct grid state from actions up to a given index
+function reconstructGridFromActions(actionIndex) {
+    // If we're reconstructing the same or earlier state, use cache if available
+    if (cachedReplayGrid && actionIndex <= cachedReplayIndex) {
+        // Go backwards: start fresh and rebuild
+        cachedReplayGrid = null;
+        cachedReplayIndex = -1;
+    }
+
+    // Start from cache or empty grid
+    let grid;
+    let startIndex;
+
+    if (cachedReplayGrid && actionIndex > cachedReplayIndex) {
+        // Incremental: start from cached state
+        grid = JSON.parse(JSON.stringify(cachedReplayGrid));
+        startIndex = cachedReplayIndex + 1;
+    } else {
+        // From scratch: start with empty grid
+        grid = Array(rows).fill().map(() => Array(cols).fill(0));
+        startIndex = 0;
+    }
+
+    // Apply actions incrementally
+    for (let i = startIndex; i <= actionIndex && i < historyLog.length; i++) {
+        const action = historyLog[i];
+        grid[action.row][action.col] = action.active;
+    }
+
+    // Update cache
+    cachedReplayGrid = JSON.parse(JSON.stringify(grid));
+    cachedReplayIndex = actionIndex;
+
+    return grid;
+}
+
+// Reset cache when history changes or replay ends
+function resetReplayCache() {
+    cachedReplayGrid = null;
+    cachedReplayIndex = -1;
 }
 
 // --- 3. Controle de Áudio ---
@@ -226,7 +279,7 @@ function onStep(time) {
                 replayIndex = historyLog.length - 1;
                 cyclicStopRequest = true;
             }
-            playbackGrid = historyLog[replayIndex];
+            playbackGrid = reconstructGridFromActions(replayIndex);
             renderGrid(playbackGrid);
             updateProgressBar(replayIndex);
         }
@@ -267,6 +320,7 @@ function endReplay() {
     statusText.innerText = "LIVE 🔴";
     statusText.style.color = "#00ff9d";
     renderGrid(currentGrid);
+    resetReplayCache();  // Reset cache when replay ends
     updateUIState();
 }
 
@@ -281,6 +335,7 @@ linearBtn.addEventListener('click', () => {
     cyclicBtn.disabled = true;
 
     resetCursor();
+    resetReplayCache();  // Reset cache when starting replay
     replayIndex = 0;
     runLinearStep();
 });
@@ -289,14 +344,14 @@ function runLinearStep() {
     if (mode !== 'LINEAR_REPLAY') return;
     if (replayIndex >= historyLog.length) { endReplay(); return; }
 
-    playbackGrid = historyLog[replayIndex];
+    playbackGrid = reconstructGridFromActions(replayIndex);
     renderGrid(playbackGrid);
     updateProgressBar(replayIndex);
 
     replayIndex++;
 
-    const speedVal = parseInt(speedRange.value);
-    const delay = 550 - (speedVal * 25);
+    // Delay fixo para suavizar a visualização do histórico (800ms por ação)
+    const delay = 800;
     linearTimeout = setTimeout(runLinearStep, delay);
 }
 
@@ -315,9 +370,10 @@ cyclicBtn.addEventListener('click', () => {
     linearBtn.disabled = true;
 
     resetCursor();
+    resetReplayCache();  // Reset cache when starting replay
     replayIndex = 0;
     cyclicStopRequest = false;
-    playbackGrid = historyLog[0];
+    playbackGrid = reconstructGridFromActions(0);
     renderGrid(playbackGrid);
     updateProgressBar(0);
 });

@@ -24,7 +24,7 @@ function getOrCreateRoom(roomId) {
         const initialGrid = Array(ROWS).fill().map(() => Array(COLS).fill(0));
         rooms[roomId] = {
             grid: initialGrid,
-            history: [JSON.parse(JSON.stringify(initialGrid))]
+            history: []  // Now stores individual actions instead of full snapshots
         };
     }
     return rooms[roomId];
@@ -55,13 +55,24 @@ io.on('connection', (socket) => {
 
         room.grid[row][col] = room.grid[row][col] ? 0 : 1;
 
-        room.history.push(JSON.parse(JSON.stringify(room.grid)));
+        // Store individual action instead of full grid snapshot
+        const action = {
+            row,
+            col,
+            active: room.grid[row][col],
+            timestamp: Date.now()
+        };
+        room.history.push(action);
 
+        // Broadcast the grid update
         io.to(roomId).emit('update-note', {
             row,
             col,
             active: room.grid[row][col]
         });
+
+        // Broadcast the updated history (single source of truth)
+        io.to(roomId).emit('history-update', room.history);
     });
 
     socket.on('import-state', (stateData) => {
