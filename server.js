@@ -24,7 +24,7 @@ function getOrCreateRoom(roomId) {
         const initialGrid = Array(ROWS).fill().map(() => Array(COLS).fill(0));
         rooms[roomId] = {
             grid: initialGrid,
-            history: [JSON.parse(JSON.stringify(initialGrid))]
+            history: []  // Now stores individual actions instead of full snapshots
         };
     }
     return rooms[roomId];
@@ -55,13 +55,64 @@ io.on('connection', (socket) => {
 
         room.grid[row][col] = room.grid[row][col] ? 0 : 1;
 
-        room.history.push(JSON.parse(JSON.stringify(room.grid)));
+        // Store individual action instead of full grid snapshot
+        const action = {
+            row,
+            col,
+            active: room.grid[row][col],
+            timestamp: Date.now()
+        };
+        room.history.push(action);
 
+        // Broadcast the grid update
         io.to(roomId).emit('update-note', {
             row,
             col,
             active: room.grid[row][col]
         });
+
+        // Broadcast the updated history (single source of truth)
+        io.to(roomId).emit('history-update', room.history);
+    });
+
+    socket.on('import-state', (stateData) => {
+        const roomId = socket.data.currentRoom;
+
+        if (!roomId || !rooms[roomId]) return;
+
+        // Validate imported data
+        if (!stateData.grid || !Array.isArray(stateData.grid)) {
+            console.log('Invalid import: missing grid');
+            return;
+        }
+
+        if (!stateData.history || !Array.isArray(stateData.history)) {
+            console.log('Invalid import: missing history');
+            return;
+        }
+
+        // Validate grid dimensions
+        if (stateData.grid.length !== ROWS) {
+            console.log(`Invalid import: grid should have ${ROWS} rows`);
+            return;
+        }
+
+        for (let row of stateData.grid) {
+            if (!Array.isArray(row) || row.length !== COLS) {
+                console.log(`Invalid import: each row should have ${COLS} columns`);
+                return;
+            }
+        }
+
+        // Update room state
+        const room = rooms[roomId];
+        room.grid = stateData.grid;
+        room.history = stateData.history;
+
+        console.log(`State imported to room ${roomId}`);
+
+        // Broadcast the new state to all clients in the room
+        io.to(roomId).emit('initial-state', room);
     });
 
     socket.on('disconnect', () => {

@@ -8,7 +8,7 @@ const scaleNotes = ["C5", "A4", "G4", "E4", "D4", "C4", "A3", "G3"];
 
 // --- Estado ---
 let currentGrid = Array(rows).fill().map(() => Array(cols).fill(0));
-let historyLog = [];
+let historyLog = [];  // Now stores actions: [{row, col, active, timestamp}, ...]
 let playbackGrid = [];
 
 let mode = 'LIVE';
@@ -35,6 +35,9 @@ const speedRange = document.getElementById('speedRange');
 const replayProgress = document.getElementById('replayProgress');
 const statusText = document.getElementById('statusText');
 const replayCounter = document.getElementById('replayCounter');
+const exportBtn = document.getElementById('exportBtn');
+const importBtn = document.getElementById('importBtn');
+const importFileInput = document.getElementById('importFileInput');
 
 // --- 0. Lógica de Lobby / Sala ---
 
@@ -121,21 +124,28 @@ function renderGrid(gridData) {
 socket.on('initial-state', (data) => {
     currentGrid = data.grid;
     historyLog = data.history;
+    resetReplayCache();  // Reset cache when receiving initial state
     if (mode === 'LIVE') renderGrid(currentGrid);
     updateUIState();
 });
 
 socket.on('update-note', ({ row, col, active }) => {
     currentGrid[row][col] = active;
-    historyLog.push(JSON.parse(JSON.stringify(currentGrid)));
+    // Don't push to history here - server is the source of truth
+    // History will be synced via 'history-update' event
     if (mode === 'LIVE') {
         renderGrid(currentGrid);
-        updateUIState();
     }
 });
 
+socket.on('history-update', (history) => {
+    historyLog = history;
+    resetReplayCache();  // Reset cache when history changes
+    updateUIState();
+});
+
 function updateUIState() {
-    replayCounter.innerText = `Histórico: ${historyLog.length} versões`;
+    replayCounter.innerText = `Histórico: ${historyLog.length} ações`;
     const canReplay = isAudioStarted && mode === 'LIVE' && historyLog.length > 1;
     if (mode === 'LIVE') {
         linearBtn.disabled = !canReplay;
@@ -146,6 +156,52 @@ function updateUIState() {
         cyclicBtn.classList.remove('btn-stop-replay');
         replayProgress.style.width = '100%';
     }
+}
+
+// Cache for incremental reconstruction
+let cachedReplayGrid = null;
+let cachedReplayIndex = -1;
+
+// Helper function to reconstruct grid state from actions up to a given index
+function reconstructGridFromActions(actionIndex) {
+    // If we're reconstructing the same or earlier state, use cache if available
+    if (cachedReplayGrid && actionIndex <= cachedReplayIndex) {
+        // Go backwards: start fresh and rebuild
+        cachedReplayGrid = null;
+        cachedReplayIndex = -1;
+    }
+
+    // Start from cache or empty grid
+    let grid;
+    let startIndex;
+
+    if (cachedReplayGrid && actionIndex > cachedReplayIndex) {
+        // Incremental: start from cached state
+        grid = JSON.parse(JSON.stringify(cachedReplayGrid));
+        startIndex = cachedReplayIndex + 1;
+    } else {
+        // From scratch: start with empty grid
+        grid = Array(rows).fill().map(() => Array(cols).fill(0));
+        startIndex = 0;
+    }
+
+    // Apply actions incrementally
+    for (let i = startIndex; i <= actionIndex && i < historyLog.length; i++) {
+        const action = historyLog[i];
+        grid[action.row][action.col] = action.active;
+    }
+
+    // Update cache
+    cachedReplayGrid = JSON.parse(JSON.stringify(grid));
+    cachedReplayIndex = actionIndex;
+
+    return grid;
+}
+
+// Reset cache when history changes or replay ends
+function resetReplayCache() {
+    cachedReplayGrid = null;
+    cachedReplayIndex = -1;
 }
 
 // --- 3. Controle de Áudio ---
@@ -210,7 +266,7 @@ function onStep(time) {
                 replayIndex = historyLog.length - 1;
                 cyclicStopRequest = true;
             }
-            playbackGrid = historyLog[replayIndex];
+            playbackGrid = reconstructGridFromActions(replayIndex);
             renderGrid(playbackGrid);
             updateProgressBar(replayIndex);
         }
@@ -251,6 +307,7 @@ function endReplay() {
     statusText.innerText = "LIVE 🔴";
     statusText.style.color = "#00ff9d";
     renderGrid(currentGrid);
+    resetReplayCache();  // Reset cache when replay ends
     updateUIState();
 }
 
@@ -265,6 +322,7 @@ linearBtn.addEventListener('click', () => {
     cyclicBtn.disabled = true;
 
     resetCursor();
+    resetReplayCache();  // Reset cache when starting replay
     replayIndex = 0;
     runLinearStep();
 });
@@ -273,14 +331,14 @@ function runLinearStep() {
     if (mode !== 'LINEAR_REPLAY') return;
     if (replayIndex >= historyLog.length) { endReplay(); return; }
 
-    playbackGrid = historyLog[replayIndex];
+    playbackGrid = reconstructGridFromActions(replayIndex);
     renderGrid(playbackGrid);
     updateProgressBar(replayIndex);
 
     replayIndex++;
 
-    const speedVal = parseInt(speedRange.value);
-    const delay = 550 - (speedVal * 25);
+    // Delay fixo para suavizar a visualização do histórico (800ms por ação)
+    const delay = 800;
     linearTimeout = setTimeout(runLinearStep, delay);
 }
 
@@ -299,9 +357,103 @@ cyclicBtn.addEventListener('click', () => {
     linearBtn.disabled = true;
 
     resetCursor();
+    resetReplayCache();  // Reset cache when starting replay
     replayIndex = 0;
     cyclicStopRequest = false;
-    playbackGrid = historyLog[0];
+    playbackGrid = reconstructGridFromActions(0);
     renderGrid(playbackGrid);
     updateProgressBar(0);
+});
+
+// --- 6. Import/Export State ---
+
+// Export current room state to JSON file
+exportBtn.addEventListener('click', () => {
+    const roomName = new URLSearchParams(window.location.search).get('room') || 'unknown-room';
+    const stateData = {
+        grid: currentGrid,
+        history: historyLog,
+        exportedAt: new Date().toISOString(),
+        roomName: roomName
+    };
+
+    const dataStr = JSON.stringify(stateData, null, 2);
+    const blob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `orquestra-${roomName}-${Date.now()}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    // Visual feedback
+    const originalText = exportBtn.innerText;
+    exportBtn.innerText = "EXPORTADO ✓";
+    exportBtn.disabled = true;
+    setTimeout(() => {
+        exportBtn.innerText = originalText;
+        exportBtn.disabled = false;
+    }, 2000);
+});
+
+// Trigger file input when import button is clicked
+importBtn.addEventListener('click', () => {
+    importFileInput.click();
+});
+
+// Handle file import
+importFileInput.addEventListener('change', (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        try {
+            const stateData = JSON.parse(e.target.result);
+
+            // Validate the imported data
+            if (!stateData.grid || !Array.isArray(stateData.grid)) {
+                alert('Arquivo inválido: faltando grid');
+                return;
+            }
+            if (!stateData.history || !Array.isArray(stateData.history)) {
+                alert('Arquivo inválido: faltando histórico');
+                return;
+            }
+
+            // Validate grid dimensions
+            if (stateData.grid.length !== rows) {
+                alert(`Arquivo inválido: grid deve ter ${rows} linhas`);
+                return;
+            }
+            for (let row of stateData.grid) {
+                if (row.length !== cols) {
+                    alert(`Arquivo inválido: grid deve ter ${cols} colunas`);
+                    return;
+                }
+            }
+
+            // Send to server to update room state
+            socket.emit('import-state', stateData);
+
+            // Visual feedback
+            const originalText = importBtn.innerText;
+            importBtn.innerText = "IMPORTADO ✓";
+            importBtn.disabled = true;
+            setTimeout(() => {
+                importBtn.innerText = originalText;
+                importBtn.disabled = false;
+            }, 2000);
+
+        } catch (error) {
+            alert('Erro ao ler arquivo: ' + error.message);
+        }
+    };
+    reader.readAsText(file);
+
+    // Reset file input so the same file can be imported again
+    event.target.value = '';
 });
