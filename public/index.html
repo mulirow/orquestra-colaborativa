@@ -68,6 +68,25 @@
                     </div>
                 </div>
             </div>
+
+            <!-- Import/Export State -->
+            <div class="control-section">
+                <div style="display: flex; flex-direction: column; gap: 10px; width: 100%;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span style="font-size: 0.9rem; font-weight: bold; color: #ddd;">Salvar / Carregar</span>
+                    </div>
+
+                    <div style="display: flex; gap: 10px; align-items: center;">
+                        <button id="exportBtn" style="flex: 1;">EXPORTAR ESTADO 💾</button>
+                        <button id="importBtn" style="flex: 1;">IMPORTAR ESTADO 📂</button>
+                        <input type="file" id="importFileInput" accept=".json" style="display: none;">
+                    </div>
+
+                    <div style="font-size: 0.7rem; color: #666; text-align: center;">
+                        Exporte para salvar ou importe para restaurar um estado anterior
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 

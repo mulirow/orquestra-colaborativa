@@ -64,6 +64,46 @@ io.on('connection', (socket) => {
         });
     });
 
+    socket.on('import-state', (stateData) => {
+        const roomId = socket.data.currentRoom;
+
+        if (!roomId || !rooms[roomId]) return;
+
+        // Validate imported data
+        if (!stateData.grid || !Array.isArray(stateData.grid)) {
+            console.log('Invalid import: missing grid');
+            return;
+        }
+
+        if (!stateData.history || !Array.isArray(stateData.history)) {
+            console.log('Invalid import: missing history');
+            return;
+        }
+
+        // Validate grid dimensions
+        if (stateData.grid.length !== ROWS) {
+            console.log(`Invalid import: grid should have ${ROWS} rows`);
+            return;
+        }
+
+        for (let row of stateData.grid) {
+            if (!Array.isArray(row) || row.length !== COLS) {
+                console.log(`Invalid import: each row should have ${COLS} columns`);
+                return;
+            }
+        }
+
+        // Update room state
+        const room = rooms[roomId];
+        room.grid = stateData.grid;
+        room.history = stateData.history;
+
+        console.log(`State imported to room ${roomId}`);
+
+        // Broadcast the new state to all clients in the room
+        io.to(roomId).emit('initial-state', room);
+    });
+
     socket.on('disconnect', () => {
         // TO-DO: limpar salas vazias
     });

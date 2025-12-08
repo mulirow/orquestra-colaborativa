@@ -38,6 +38,9 @@ const speedRange = document.getElementById('speedRange');
 const replayProgress = document.getElementById('replayProgress');
 const statusText = document.getElementById('statusText');
 const replayCounter = document.getElementById('replayCounter');
+const exportBtn = document.getElementById('exportBtn');
+const importBtn = document.getElementById('importBtn');
+const importFileInput = document.getElementById('importFileInput');
 
 // --- 0. Lógica de Lobby / Sala ---
 
@@ -340,3 +343,96 @@ function startCooldownVisuals() {
         }
     }, 1000);
 }
+
+// --- 6. Import/Export State ---
+
+// Export current room state to JSON file
+exportBtn.addEventListener('click', () => {
+    const roomName = new URLSearchParams(window.location.search).get('room') || 'unknown-room';
+    const stateData = {
+        grid: currentGrid,
+        history: historyLog,
+        exportedAt: new Date().toISOString(),
+        roomName: roomName
+    };
+
+    const dataStr = JSON.stringify(stateData, null, 2);
+    const blob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `orquestra-${roomName}-${Date.now()}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    // Visual feedback
+    const originalText = exportBtn.innerText;
+    exportBtn.innerText = "EXPORTADO ✓";
+    exportBtn.disabled = true;
+    setTimeout(() => {
+        exportBtn.innerText = originalText;
+        exportBtn.disabled = false;
+    }, 2000);
+});
+
+// Trigger file input when import button is clicked
+importBtn.addEventListener('click', () => {
+    importFileInput.click();
+});
+
+// Handle file import
+importFileInput.addEventListener('change', (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        try {
+            const stateData = JSON.parse(e.target.result);
+
+            // Validate the imported data
+            if (!stateData.grid || !Array.isArray(stateData.grid)) {
+                alert('Arquivo inválido: faltando grid');
+                return;
+            }
+            if (!stateData.history || !Array.isArray(stateData.history)) {
+                alert('Arquivo inválido: faltando histórico');
+                return;
+            }
+
+            // Validate grid dimensions
+            if (stateData.grid.length !== rows) {
+                alert(`Arquivo inválido: grid deve ter ${rows} linhas`);
+                return;
+            }
+            for (let row of stateData.grid) {
+                if (row.length !== cols) {
+                    alert(`Arquivo inválido: grid deve ter ${cols} colunas`);
+                    return;
+                }
+            }
+
+            // Send to server to update room state
+            socket.emit('import-state', stateData);
+
+            // Visual feedback
+            const originalText = importBtn.innerText;
+            importBtn.innerText = "IMPORTADO ✓";
+            importBtn.disabled = true;
+            setTimeout(() => {
+                importBtn.innerText = originalText;
+                importBtn.disabled = false;
+            }, 2000);
+
+        } catch (error) {
+            alert('Erro ao ler arquivo: ' + error.message);
+        }
+    };
+    reader.readAsText(file);
+
+    // Reset file input so the same file can be imported again
+    event.target.value = '';
+});
