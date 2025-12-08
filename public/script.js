@@ -24,6 +24,12 @@ let lastClickTime = parseInt(localStorage.getItem('lastClickTime')) || 0;
 const COOLDOWN_MS = 15000;
 let cooldownInterval = null;
 
+const landingScreen = document.getElementById('landing-screen');
+const appScreen = document.getElementById('app-screen');
+const roomInput = document.getElementById('roomInput');
+const joinBtn = document.getElementById('joinBtn');
+const roomNameDisplay = document.getElementById('roomNameDisplay');
+
 const containerDiv = document.getElementById('sequencer-container');
 const audioBtn = document.getElementById('audioToggleBtn');
 const linearBtn = document.getElementById('linearReplayBtn');
@@ -32,6 +38,43 @@ const speedRange = document.getElementById('speedRange');
 const replayProgress = document.getElementById('replayProgress');
 const statusText = document.getElementById('statusText');
 const replayCounter = document.getElementById('replayCounter');
+
+// --- 0. Lógica de Lobby / Sala ---
+
+// Tenta pegar sala da URL (ex: ?room=minhasala)
+const urlParams = new URLSearchParams(window.location.search);
+const roomFromUrl = urlParams.get('room');
+
+if (roomFromUrl) {
+    joinRoom(roomFromUrl);
+}
+
+joinBtn.addEventListener('click', () => {
+    const roomName = roomInput.value.trim();
+    if (roomName) joinRoom(roomName);
+});
+
+roomInput.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') {
+        const roomName = roomInput.value.trim();
+        if (roomName) joinRoom(roomName);
+    }
+});
+
+function joinRoom(roomName) {
+    const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname + '?room=' + roomName;
+    window.history.pushState({ path: newUrl }, '', newUrl);
+
+    landingScreen.style.display = 'none';
+    appScreen.style.display = 'flex';
+    appScreen.style.flexDirection = 'column';
+    appScreen.style.alignItems = 'center';
+
+    roomNameDisplay.innerText = `Sala: ${roomName}`;
+
+    socket.emit('join-room', roomName);
+}
+
 
 // --- 1. Interface ---
 function buildInterface() {

@@ -11,6 +11,55 @@ body {
     user-select: none;
 }
 
+/* --- TELA DE LOBBY --- */
+#landing-screen {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+}
+
+.lobby-box {
+    background: #2a2a2a;
+    padding: 30px;
+    border-radius: 8px;
+    border: 1px solid #444;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    width: 300px;
+    text-align: center;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+}
+
+#roomInput {
+    padding: 10px;
+    border-radius: 4px;
+    border: 1px solid #555;
+    background: #111;
+    color: white;
+    text-align: center;
+    font-size: 1rem;
+}
+#roomInput:focus {
+    outline: none;
+    border-color: #007acc;
+}
+
+/* --- TELA DO APP (Header) --- */
+.header-bar {
+    display: flex;
+    justify-content: space-between;
+    width: 100%;
+    max-width: 550px;
+    align-items: center;
+    margin-bottom: 10px;
+    padding: 0 10px;
+    box-sizing: border-box;
+}
+
+
+/* --- SEQUENCIADOR --- */
 #sequencer-container {
     background: #222;
     padding: 20px;

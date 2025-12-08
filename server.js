@@ -9,49 +9,67 @@ const io = new Server(server);
 
 app.use(express.static(path.join(__dirname, 'public')));
 
-// CONFIGURAÇÃO DO GRID
-// 10 Linhas: 8 Melódicas + 2 Bateria
+// Constantes Globais
+// TO-DO: deixar constantes globais dinâmicas por sala
 const ROWS = 10;
 const COLS = 16;
 
-// Inicializa a Matriz
-let gridState = Array(ROWS).fill().map(() => Array(COLS).fill(0));
+// ARMAZENAMENTO DAS SALAS
+// Estrutura: { 'nome-da-sala': { grid: [...], history: [...] } }
+const rooms = {};
 
-// Histórico para o Timelapse
-let history = [JSON.parse(JSON.stringify(gridState))];
+function getOrCreateRoom(roomId) {
+    if (!rooms[roomId]) {
+        console.log(`Criando nova sala: ${roomId}`);
+        const initialGrid = Array(ROWS).fill().map(() => Array(COLS).fill(0));
+        rooms[roomId] = {
+            grid: initialGrid,
+            history: [JSON.parse(JSON.stringify(initialGrid))]
+        };
+    }
+    return rooms[roomId];
+}
 
 io.on('connection', (socket) => {
-    console.log('Um usuário conectou:', socket.id);
+    console.log('Usuário conectado:', socket.id);
 
-    // Envia estado inicial
-    socket.emit('initial-state', { grid: gridState, history: history });
+    socket.on('join-room', (roomId) => {
+        socket.join(roomId);
+        socket.data.currentRoom = roomId;
+        const roomData = getOrCreateRoom(roomId);
+        socket.emit('initial-state', roomData);
+
+        console.log(`Socket ${socket.id} entrou na sala ${roomId}`);
+    });
 
     socket.on('toggle-note', (data) => {
+        const roomId = socket.data.currentRoom;
+
+        if (!roomId || !rooms[roomId]) return;
+
         const { row, col } = data;
 
-        if (row < 0 || row >= ROWS || col < 0 || col >= COLS) {
-            console.warn(`Tentativa inválida de acesso: Row ${row}, Col ${col}`);
-            return;
-        }
+        if (row < 0 || row >= ROWS || col < 0 || col >= COLS) return;
 
-        gridState[row][col] = gridState[row][col] ? 0 : 1;
+        const room = rooms[roomId];
 
-        // Salva Snapshot
-        history.push(JSON.parse(JSON.stringify(gridState)));
+        room.grid[row][col] = room.grid[row][col] ? 0 : 1;
 
-        io.emit('update-note', {
+        room.history.push(JSON.parse(JSON.stringify(room.grid)));
+
+        io.to(roomId).emit('update-note', {
             row,
             col,
-            active: gridState[row][col]
+            active: room.grid[row][col]
         });
     });
 
     socket.on('disconnect', () => {
-        console.log('Usuário desconectou');
+        // TO-DO: limpar salas vazias
     });
 });
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-    console.log(`Orquestra rodando em http://localhost:${PORT}`);
+    console.log(`Orquestras rodando em http://localhost:${PORT}`);
 });
