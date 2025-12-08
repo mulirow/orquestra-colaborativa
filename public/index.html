@@ -11,45 +11,61 @@
 
 <body>
 
-    <div
-        style="display: flex; justify-content: space-between; width: 100%; max-width: 550px; align-items: center; margin-bottom: 10px; padding: 0 10px; box-sizing: border-box;">
-        <h1 style="margin:0; font-size: 1.2rem;">Orquestra Colaborativa</h1>
-        <div id="statusText">AGUARDANDO INÍCIO...</div>
+    <!-- TELA DE LOBBY -->
+    <div id="landing-screen">
+        <h1>Orquestra Colaborativa</h1>
+        <div class="lobby-box">
+            <p>Crie uma nova sala ou entre em uma existente:</p>
+            <input type="text" id="roomInput" placeholder="Nome da Sala (ex: jam-session)" autocomplete="off">
+            <button id="joinBtn" class="btn-play">ENTRAR NA SALA</button>
+        </div>
     </div>
 
-    <div id="sequencer-container"></div>
+    <!-- TELA DA APLICAÇÃO -->
+    <div id="app-screen" style="display: none;">
 
-    <div id="controls">
-        <!-- Play / Pause -->
-        <div class="control-section">
-            <button id="audioToggleBtn" class="btn-play">INICIAR ÁUDIO 🔊</button>
-            <div style="font-size: 0.8rem; color: #888;">BPM: 120</div>
+        <div class="header-bar">
+            <div>
+                <h1 style="margin:0; font-size: 1.2rem;">Orquestra Colaborativa</h1>
+                <div id="roomNameDisplay" style="font-size: 0.8rem; color: #888;">Sala: ---</div>
+            </div>
+            <div id="statusText">AGUARDANDO INÍCIO...</div>
         </div>
 
-        <!-- Time Machine -->
-        <div class="control-section">
-            <div style="display: flex; flex-direction: column; gap: 10px; width: 100%;">
-                <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <span style="font-size: 0.9rem; font-weight: bold; color: #ddd;">Time Machine</span>
-                    <span id="replayCounter" style="font-size: 0.7rem; color: #666;">Histórico: 0 estados</span>
-                </div>
+        <div id="sequencer-container"></div>
 
-                <div style="display: flex; gap: 10px; align-items: center;">
-                    <button id="linearReplayBtn" disabled>Histórico Visual ⏩</button>
+        <div id="controls">
+            <!-- Play / Pause -->
+            <div class="control-section">
+                <button id="audioToggleBtn" class="btn-play">INICIAR ÁUDIO 🔊</button>
+                <div style="font-size: 0.8rem; color: #888;">BPM: 120</div>
+            </div>
 
-                    <div class="slider-container">
-                        <span>Lento</span>
-                        <input type="range" id="speedRange" min="1" max="20" value="10">
-                        <span>Rápido</span>
+            <!-- Time Machine -->
+            <div class="control-section">
+                <div style="display: flex; flex-direction: column; gap: 10px; width: 100%;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span style="font-size: 0.9rem; font-weight: bold; color: #ddd;">Time Machine</span>
+                        <span id="replayCounter" style="font-size: 0.7rem; color: #666;">Histórico: 0 estados</span>
                     </div>
-                </div>
 
-                <div style="display: flex; gap: 10px; align-items: center; margin-top: 5px;">
-                    <button id="cyclicReplayBtn" disabled>Timelapse 🎵</button>
-                </div>
+                    <div style="display: flex; gap: 10px; align-items: center;">
+                        <button id="linearReplayBtn" disabled>Histórico Visual ⏩</button>
 
-                <div id="replayBar">
-                    <div id="replayProgress"></div>
+                        <div class="slider-container">
+                            <span>Lento</span>
+                            <input type="range" id="speedRange" min="1" max="20" value="10">
+                            <span>Rápido</span>
+                        </div>
+                    </div>
+
+                    <div style="display: flex; gap: 10px; align-items: center; margin-top: 5px;">
+                        <button id="cyclicReplayBtn" disabled>Timelapse 🎵</button>
+                    </div>
+
+                    <div id="replayBar">
+                        <div id="replayProgress"></div>
+                    </div>
                 </div>
             </div>
         </div>
