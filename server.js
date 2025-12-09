@@ -20,7 +20,7 @@ const rooms = {};
 
 function getOrCreateRoom(roomId) {
     if (!rooms[roomId]) {
-        console.log(`Criando nova sala: ${roomId}`);
+
         const initialGrid = Array(ROWS).fill().map(() => Array(COLS).fill(0));
         rooms[roomId] = {
             grid: initialGrid,
@@ -31,7 +31,7 @@ function getOrCreateRoom(roomId) {
 }
 
 io.on('connection', (socket) => {
-    console.log('Usuário conectado:', socket.id);
+
 
     socket.on('join-room', (roomId) => {
         socket.join(roomId);
@@ -39,7 +39,7 @@ io.on('connection', (socket) => {
         const roomData = getOrCreateRoom(roomId);
         socket.emit('initial-state', roomData);
 
-        console.log(`Socket ${socket.id} entrou na sala ${roomId}`);
+
     });
 
     socket.on('toggle-note', (data) => {
@@ -142,7 +142,7 @@ io.on('connection', (socket) => {
         room.grid = stateData.grid;
         room.history = stateData.history;
 
-        console.log(`State imported to room ${roomId}`);
+
 
         // Broadcast the new state to all clients in the room
         io.to(roomId).emit('initial-state', room);
