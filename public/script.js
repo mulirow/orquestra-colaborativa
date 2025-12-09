@@ -307,7 +307,7 @@ const InstrumentManager = {
                 "C8": "C8.mp3"
             },
             release: 1,
-            baseUrl: "https://tonejs.github.io/audio/salamander/"
+            baseUrl: "/samples/piano/"
         }).toDestination();
         
         // GUITAR (Acoustic)
@@ -317,7 +317,7 @@ const InstrumentManager = {
                 "C4": "C4.wav", "D#4": "Ds4.wav", "F#4": "Fs4.wav", "A4": "A4.wav"
             },
             release: 1,
-            baseUrl: "https://raw.githubusercontent.com/nbrosowsky/tonejs-instruments/master/samples/guitar-acoustic/"
+            baseUrl: "/samples/guitar-acoustic/"
         }).toDestination();
         // ELECTRIC GUITAR
         this.synths['ElectricGuitar'] = new Tone.Sampler({
@@ -327,18 +327,18 @@ const InstrumentManager = {
                 "D#5": "Ds5.wav", "F#5": "Fs5.wav", "A5": "A5.wav", "C6": "C6.wav"
             },
             release: 1,
-            baseUrl: "https://raw.githubusercontent.com/nbrosowsky/tonejs-instruments/master/samples/guitar-electric/"
+            baseUrl: "/samples/guitar-electric/"
         }).toDestination();
         
         // SAXOPHONE
         this.synths['Saxophone'] = new Tone.Sampler({
             urls: {
-                "D#3": "Ds3.wav", "F#3": "Fs3.wav", "A3": "A3.wav",
+                "D#3": "Ds3.wav", "F#3": "Fs3.wav",
                 "C4": "C4.wav", "D#4": "Ds4.wav", "F#4": "Fs4.wav", "A4": "A4.wav",
                 "C5": "C5.wav", "D#5": "Ds5.wav", "F#5": "Fs5.wav", "A5": "A5.wav"
             },
             release: 1,
-            baseUrl: "https://raw.githubusercontent.com/nbrosowsky/tonejs-instruments/master/samples/saxophone/"
+            baseUrl: "/samples/saxophone/"
         }).toDestination();
 
 
@@ -351,6 +351,11 @@ const InstrumentManager = {
 
         const synth = this.synths[name];
         if (synth) {
+            // Check if sample is loaded (only for samplers)
+            if (synth.loaded === false) {
+                 this.synths['Synth'].triggerAttackRelease(note, duration, time);
+                 return;
+            }
             synth.triggerAttackRelease(note, duration, time);
         } else {
             // Fallback if instrument not found

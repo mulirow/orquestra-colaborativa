@@ -49,6 +49,9 @@ io.on('connection', (socket) => {
 
         const { row, col, instrument } = data; // Accept instrument from client
 
+        const ALLOWED_INSTRUMENTS = ['Synth', 'Piano', 'Guitar', 'ElectricGuitar', 'Saxophone'];
+        const targetInstrument = (instrument && ALLOWED_INSTRUMENTS.includes(instrument)) ? instrument : 'Synth';
+
         if (row < 0 || row >= ROWS || col < 0 || col >= COLS) return;
 
         const room = rooms[roomId];
@@ -73,7 +76,7 @@ io.on('connection', (socket) => {
             instruments = ['Synth'];
         }
 
-        const targetInstrument = instrument || 'Synth';
+        // const targetInstrument = instrument || 'Synth'; // Already validated above
         
         // Toggle logic
         const index = instruments.indexOf(targetInstrument);
