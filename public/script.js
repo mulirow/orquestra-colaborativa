@@ -291,36 +291,69 @@ const InstrumentManager = {
              volume: -12
         }).toDestination();
 
-        this.synths['Keyboard'] = new Tone.PolySynth(Tone.AMSynth, {
-            volume: -12
+
+
+        // PIANO (Salamander)
+        this.synths['Piano'] = new Tone.Sampler({
+            urls: {
+                "A0": "A0.mp3",
+                "C1": "C1.mp3", "D#1": "Ds1.mp3", "F#1": "Fs1.mp3", "A1": "A1.mp3",
+                "C2": "C2.mp3", "D#2": "Ds2.mp3", "F#2": "Fs2.mp3", "A2": "A2.mp3",
+                "C3": "C3.mp3", "D#3": "Ds3.mp3", "F#3": "Fs3.mp3", "A3": "A3.mp3",
+                "C4": "C4.mp3", "D#4": "Ds4.mp3", "F#4": "Fs4.mp3", "A4": "A4.mp3",
+                "C5": "C5.mp3", "D#5": "Ds5.mp3", "F#5": "Fs5.mp3", "A5": "A5.mp3",
+                "C6": "C6.mp3", "D#6": "Ds6.mp3", "F#6": "Fs6.mp3", "A6": "A6.mp3",
+                "C7": "C7.mp3", "D#7": "Ds7.mp3", "F#7": "Fs7.mp3", "A7": "A7.mp3",
+                "C8": "C8.mp3"
+            },
+            release: 1,
+            baseUrl: "https://tonejs.github.io/audio/salamander/"
         }).toDestination();
         
-        this.synths['Bell'] = new Tone.PolySynth(Tone.FMSynth, {
-            volume: -12
+        // GUITAR (Acoustic)
+        this.synths['Guitar'] = new Tone.Sampler({
+            urls: {
+                "A2": "A2.wav", "C3": "C3.wav", "D#3": "Ds3.wav", "F#3": "Fs3.wav", "A3": "A3.wav",
+                "C4": "C4.wav", "D#4": "Ds4.wav", "F#4": "Fs4.wav", "A4": "A4.wav"
+            },
+            release: 1,
+            baseUrl: "https://raw.githubusercontent.com/nbrosowsky/tonejs-instruments/master/samples/guitar-acoustic/"
+        }).toDestination();
+        // ELECTRIC GUITAR
+        this.synths['ElectricGuitar'] = new Tone.Sampler({
+            urls: {
+                "A2": "A2.wav", "C3": "C3.wav", "D#3": "Ds3.wav", "F#3": "Fs3.wav", "A3": "A3.wav",
+                "C4": "C4.wav", "D#4": "Ds4.wav", "F#4": "Fs4.wav", "A4": "A4.wav", "C5": "C5.wav", 
+                "D#5": "Ds5.wav", "F#5": "Fs5.wav", "A5": "A5.wav", "C6": "C6.wav"
+            },
+            release: 1,
+            baseUrl: "https://raw.githubusercontent.com/nbrosowsky/tonejs-instruments/master/samples/guitar-electric/"
         }).toDestination();
         
-        this.synths['Alien'] = new Tone.PolySynth(Tone.DuoSynth, {
-            volume: -12
+        // SAXOPHONE
+        this.synths['Saxophone'] = new Tone.Sampler({
+            urls: {
+                "D#3": "Ds3.wav", "F#3": "Fs3.wav", "A3": "A3.wav",
+                "C4": "C4.wav", "D#4": "Ds4.wav", "F#4": "Fs4.wav", "A4": "A4.wav",
+                "C5": "C5.wav", "D#5": "Ds5.wav", "F#5": "Fs5.wav", "A5": "A5.wav"
+            },
+            release: 1,
+            baseUrl: "https://raw.githubusercontent.com/nbrosowsky/tonejs-instruments/master/samples/saxophone/"
         }).toDestination();
 
-        this.synths['Percussion'] = new Tone.PolySynth(Tone.MembraneSynth, {
-            volume: -12
-        }).toDestination();
+
     },
 
     play(instrumentName, note, duration, time) {
         // Fallback for legacy data (check if instrumentName is undefined or "1")
         let name = instrumentName;
         if (!name || name === 1) name = 'Synth';
-        
-        console.log(`Playing: ${note} on ${name}`);
 
         const synth = this.synths[name];
         if (synth) {
             synth.triggerAttackRelease(note, duration, time);
         } else {
             // Fallback if instrument not found
-            console.warn(`Instrument ${name} not found, using Synth`);
             this.synths['Synth'].triggerAttackRelease(note, duration, time);
         }
     }
@@ -328,10 +361,6 @@ const InstrumentManager = {
 
 // Initialize instruments immediately (AudioContext starts suspended)
 InstrumentManager.init();
-
-// Removed setInstrument() and instrumentSelect listener because 
-// we now just read the value when clicking. 
-// However, we want the dropdown to persist user choice locally.
 
 const kickSynth = new Tone.MembraneSynth({ volume: -6 }).toDestination();
 const snareSynth = new Tone.NoiseSynth({ volume: -12 }).toDestination();
