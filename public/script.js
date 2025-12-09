@@ -78,8 +78,12 @@ function joinRoom(roomName) {
 
 
 // --- 1. Interface ---
+let cellElements = []; // Cache to store DOM elements
+
 function buildInterface() {
     containerDiv.innerHTML = '';
+    cellElements = Array(rows).fill().map(() => Array(cols).fill(null));
+
     for (let r = 0; r < rows; r++) {
         const rowDiv = document.createElement('div');
         rowDiv.classList.add('seq-row');
@@ -104,6 +108,9 @@ function buildInterface() {
                 }
             });
             cellsDiv.appendChild(cell);
+            
+            // Cache the element
+            cellElements[r][c] = cell;
         }
         rowDiv.appendChild(cellsDiv);
         containerDiv.appendChild(rowDiv);
@@ -116,7 +123,10 @@ function renderGrid(gridData) {
 
     for (let r = 0; r < rows; r++) {
         for (let c = 0; c < cols; c++) {
-            const cell = document.getElementById(`cell-${r}-${c}`);
+            // Use cached element
+            const cell = cellElements[r][c];
+            if (!cell) continue; // Safety check
+
             const cellData = gridData[r][c];
             
             // Normalize cell instruments to Set for easy lookup
@@ -134,14 +144,24 @@ function renderGrid(gridData) {
 
             // Check if active (truthy) and contains current instrument
             const isActive = cellInstruments.has(currentInstrument);
-
-            // Clear previous classes
-            cell.className = 'cell'; 
-
+            const instClass = `inst-${currentInstrument.toLowerCase()}`;
+            
+            // Smart update: Only modify classes if needed
             if (isActive) {
-                cell.classList.add('active');
-                const instClass = `inst-${currentInstrument.toLowerCase()}`;
-                cell.classList.add(instClass);
+                if (!cell.classList.contains('active')) {
+                    cell.classList.add('active');
+                }
+                if (!cell.classList.contains(instClass)) {
+                    cell.classList.add(instClass);
+                }
+            } else {
+                if (cell.classList.contains('active')) {
+                    cell.classList.remove('active');
+                }
+                // To be safe and clean: if not active in ANY way for THIS instrument, remove this instrument's class.
+                if (cell.classList.contains(instClass)) {
+                    cell.classList.remove(instClass);
+                }
             }
         }
     }
@@ -424,7 +444,8 @@ function onStep(time) {
 
 function highlightColumn(colIndex, isHighlight) {
     for (let r = 0; r < rows; r++) {
-        const cell = document.getElementById(`cell-${r}-${colIndex}`);
+        // Use cached element
+        const cell = cellElements[r][colIndex];
         if (cell) {
             if (isHighlight) cell.classList.add('playing-col');
             else cell.classList.remove('playing-col');
