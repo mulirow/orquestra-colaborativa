@@ -38,6 +38,7 @@ const replayCounter = document.getElementById('replayCounter');
 const exportBtn = document.getElementById('exportBtn');
 const importBtn = document.getElementById('importBtn');
 const importFileInput = document.getElementById('importFileInput');
+const instrumentSelect = document.getElementById('instrumentSelect');
 
 // --- 0. Lógica de Lobby / Sala ---
 
@@ -98,7 +99,8 @@ function buildInterface() {
             cell.id = `cell-${r}-${c}`;
             cell.addEventListener('click', () => {
                 if (mode === 'LIVE') {
-                    socket.emit('toggle-note', { row: r, col: c });
+                    const selectedInstrument = instrumentSelect.value;
+                    socket.emit('toggle-note', { row: r, col: c, instrument: selectedInstrument });
                 }
             });
             cellsDiv.appendChild(cell);
@@ -110,14 +112,48 @@ function buildInterface() {
 buildInterface();
 
 function renderGrid(gridData) {
+    const currentInstrument = instrumentSelect ? instrumentSelect.value : 'Synth';
+
     for (let r = 0; r < rows; r++) {
         for (let c = 0; c < cols; c++) {
             const cell = document.getElementById(`cell-${r}-${c}`);
-            const isActive = gridData[r][c] === 1;
-            if (isActive) cell.classList.add('active');
-            else cell.classList.remove('active');
+            const cellData = gridData[r][c];
+            
+            // Normalize cell instruments to Set for easy lookup
+            let cellInstruments = new Set();
+            
+            if (!cellData) {
+                // empty
+            } else if (Array.isArray(cellData)) {
+                cellData.forEach(inst => cellInstruments.add(inst));
+            } else if (typeof cellData === 'object' && cellData.instrument) {
+                cellInstruments.add(cellData.instrument);
+            } else if (cellData === 1) {
+                cellInstruments.add('Synth');
+            }
+
+            // Check if active (truthy) and contains current instrument
+            const isActive = cellInstruments.has(currentInstrument);
+
+            // Clear previous classes
+            cell.className = 'cell'; 
+
+            if (isActive) {
+                cell.classList.add('active');
+                const instClass = `inst-${currentInstrument.toLowerCase()}`;
+                cell.classList.add(instClass);
+            }
         }
     }
+}
+
+// Add listener to update view when changing instrument
+if (instrumentSelect) {
+    instrumentSelect.addEventListener('change', () => {
+        if (mode === 'LIVE') renderGrid(currentGrid);
+        updateUIState();
+        document.body.focus();
+    });
 }
 
 // --- 2. Socket ---
@@ -244,11 +280,59 @@ audioBtn.addEventListener('click', async () => {
 });
 
 // --- 4. Motor de Áudio ---
-const melodySynth = new Tone.PolySynth(Tone.Synth, {
-    oscillator: { type: "square" },
-    envelope: { attack: 0.01, decay: 0.1, sustain: 0.1, release: 1 },
-    volume: -12
-}).toDestination();
+const InstrumentManager = {
+    synths: {},
+
+    init() {
+        // Create synths for all available types
+        this.synths['Synth'] = new Tone.PolySynth(Tone.Synth, {
+             oscillator: { type: "square" },
+             envelope: { attack: 0.01, decay: 0.1, sustain: 0.1, release: 1 },
+             volume: -12
+        }).toDestination();
+
+        this.synths['Keyboard'] = new Tone.PolySynth(Tone.AMSynth, {
+            volume: -12
+        }).toDestination();
+        
+        this.synths['Bell'] = new Tone.PolySynth(Tone.FMSynth, {
+            volume: -12
+        }).toDestination();
+        
+        this.synths['Alien'] = new Tone.PolySynth(Tone.DuoSynth, {
+            volume: -12
+        }).toDestination();
+
+        this.synths['Percussion'] = new Tone.PolySynth(Tone.MembraneSynth, {
+            volume: -12
+        }).toDestination();
+    },
+
+    play(instrumentName, note, duration, time) {
+        // Fallback for legacy data (check if instrumentName is undefined or "1")
+        let name = instrumentName;
+        if (!name || name === 1) name = 'Synth';
+        
+        console.log(`Playing: ${note} on ${name}`);
+
+        const synth = this.synths[name];
+        if (synth) {
+            synth.triggerAttackRelease(note, duration, time);
+        } else {
+            // Fallback if instrument not found
+            console.warn(`Instrument ${name} not found, using Synth`);
+            this.synths['Synth'].triggerAttackRelease(note, duration, time);
+        }
+    }
+};
+
+// Initialize instruments immediately (AudioContext starts suspended)
+InstrumentManager.init();
+
+// Removed setInstrument() and instrumentSelect listener because 
+// we now just read the value when clicking. 
+// However, we want the dropdown to persist user choice locally.
+
 const kickSynth = new Tone.MembraneSynth({ volume: -6 }).toDestination();
 const snareSynth = new Tone.NoiseSynth({ volume: -12 }).toDestination();
 
@@ -275,8 +359,27 @@ function onStep(time) {
     const gridToPlay = (mode === 'LIVE') ? currentGrid : playbackGrid;
 
     for (let r = 0; r < rows; r++) {
-        if (gridToPlay[r][currentStep] === 1) {
-            if (r < 8) melodySynth.triggerAttackRelease(scaleNotes[r], "8n", time);
+        const cellData = gridToPlay[r][currentStep];
+        
+        // Check if active
+        if (cellData) {
+            let instruments = [];
+            
+            // Normalize
+            if (Array.isArray(cellData)) {
+                instruments = cellData;
+            } else if (typeof cellData === 'object' && cellData.instrument) {
+                instruments = [cellData.instrument];
+            } else if (cellData === 1) {
+                instruments = ['Synth'];
+            }
+
+            if (r < 8) {
+                // Play ALL instruments in the cell
+                instruments.forEach(inst => {
+                    InstrumentManager.play(inst, scaleNotes[r], "8n", time);
+                });
+            }
             else if (r === 8) snareSynth.triggerAttackRelease("8n", time);
             else if (r === 9) kickSynth.triggerAttackRelease("C1", "8n", time);
         }

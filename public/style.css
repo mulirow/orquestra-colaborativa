@@ -299,3 +299,11 @@ input[type=range] { cursor: pointer; }
         font-size: 0.9rem !important;
     }
 }
+.inst-synth.active { background-color: #00ff9d; box-shadow: 0 0 8px #00ff9daa; }
+.inst-keyboard.active { background-color: #ff00ff; box-shadow: 0 0 8px #ff00ffaa; }
+.inst-piano.active { background-color: #00ccff; box-shadow: 0 0 8px #00ccffaa; }
+.inst-guitar.active { background-color: #ff6600; box-shadow: 0 0 8px #ff6600aa; }
+.inst-bass.active { background-color: #8a2be2; box-shadow: 0 0 8px #8a2be2aa; } /* BlueViolet */
+.inst-bell.active { background-color: #ffff00; box-shadow: 0 0 8px #ffff00aa; }
+.inst-alien.active { background-color: #00ff00; box-shadow: 0 0 8px #00ff00aa; }
+.inst-percussion.active { background-color: #ff0000; box-shadow: 0 0 8px #ff0000aa; }
