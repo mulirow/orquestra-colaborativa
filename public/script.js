@@ -104,6 +104,13 @@ function buildInterface() {
             cell.addEventListener('click', () => {
                 if (mode === 'LIVE') {
                     const selectedInstrument = instrumentSelect.value;
+                    
+                    // Logic: Synth gets everything (including rows 8-9)
+                    // Others get only melody (rows 0-7)
+                    if (selectedInstrument !== 'Synth') {
+                        if (r >= 8) return; // Restrict percussion rows for non-Synth
+                    }
+
                     socket.emit('toggle-note', { row: r, col: c, instrument: selectedInstrument });
                 }
             });
@@ -120,6 +127,19 @@ buildInterface();
 
 function renderGrid(gridData) {
     const currentInstrument = instrumentSelect ? instrumentSelect.value : 'Synth';
+
+    // Update Row Visibility based on Instrument
+    for (let r = 0; r < rows; r++) {
+         const rowDiv = containerDiv.children[r];
+         if (currentInstrument === 'Synth') {
+             // Synth sees all
+             rowDiv.classList.remove('disabled-row');
+         } else {
+             // Others only see melody
+             if (r >= 8) rowDiv.classList.add('disabled-row');
+             else rowDiv.classList.remove('disabled-row');
+         }
+    }
 
     for (let r = 0; r < rows; r++) {
         for (let c = 0; c < cols; c++) {

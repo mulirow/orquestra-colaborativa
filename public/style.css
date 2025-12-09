@@ -304,3 +304,10 @@ input[type=range] { cursor: pointer; }
 .inst-guitar.active { background-color: #ff6600; box-shadow: 0 0 8px #ff6600aa; }
 .inst-electricguitar.active { background-color: #ff0055; box-shadow: 0 0 8px #ff0055aa; } /* Red/Pink */
 .inst-saxophone.active { background-color: #ffd700; box-shadow: 0 0 8px #ffd700aa; } /* Gold */
+
+/* Disabled row styles */
+.seq-row.disabled-row {
+    opacity: 0.2;
+    pointer-events: none;
+    filter: grayscale(100%);
+}
