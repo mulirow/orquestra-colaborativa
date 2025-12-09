@@ -299,3 +299,15 @@ input[type=range] { cursor: pointer; }
         font-size: 0.9rem !important;
     }
 }
+.inst-synth.active { background-color: #00ff9d; box-shadow: 0 0 8px #00ff9daa; }
+.inst-piano.active { background-color: #00ccff; box-shadow: 0 0 8px #00ccffaa; }
+.inst-guitar.active { background-color: #ff6600; box-shadow: 0 0 8px #ff6600aa; }
+.inst-electricguitar.active { background-color: #ff0055; box-shadow: 0 0 8px #ff0055aa; } /* Red/Pink */
+.inst-saxophone.active { background-color: #ffd700; box-shadow: 0 0 8px #ffd700aa; } /* Gold */
+
+/* Disabled row styles */
+.seq-row.disabled-row {
+    opacity: 0.2;
+    pointer-events: none;
+    filter: grayscale(100%);
+}

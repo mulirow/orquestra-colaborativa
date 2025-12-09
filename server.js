@@ -20,7 +20,7 @@ const rooms = {};
 
 function getOrCreateRoom(roomId) {
     if (!rooms[roomId]) {
-        console.log(`Criando nova sala: ${roomId}`);
+
         const initialGrid = Array(ROWS).fill().map(() => Array(COLS).fill(0));
         rooms[roomId] = {
             grid: initialGrid,
@@ -31,7 +31,7 @@ function getOrCreateRoom(roomId) {
 }
 
 io.on('connection', (socket) => {
-    console.log('Usuário conectado:', socket.id);
+
 
     socket.on('join-room', (roomId) => {
         socket.join(roomId);
@@ -39,7 +39,7 @@ io.on('connection', (socket) => {
         const roomData = getOrCreateRoom(roomId);
         socket.emit('initial-state', roomData);
 
-        console.log(`Socket ${socket.id} entrou na sala ${roomId}`);
+
     });
 
     socket.on('toggle-note', (data) => {
@@ -47,19 +47,55 @@ io.on('connection', (socket) => {
 
         if (!roomId || !rooms[roomId]) return;
 
-        const { row, col } = data;
+        const { row, col, instrument } = data; // Accept instrument from client
+
+        const ALLOWED_INSTRUMENTS = ['Synth', 'Piano', 'Guitar', 'ElectricGuitar', 'Saxophone'];
+        const targetInstrument = (instrument && ALLOWED_INSTRUMENTS.includes(instrument)) ? instrument : 'Synth';
 
         if (row < 0 || row >= ROWS || col < 0 || col >= COLS) return;
 
         const room = rooms[roomId];
 
-        room.grid[row][col] = room.grid[row][col] ? 0 : 1;
+        // Initialize cell data if needed or normalize to array
+        let cellData = room.grid[row][col];
+        
+        // Normalize:
+        // 0 -> []
+        // { instrument: 'X' } -> ['X']
+        // 1 -> ['Synth']
+        // Array -> Array
+        let instruments = [];
+        
+        if (!cellData) {
+            instruments = [];
+        } else if (Array.isArray(cellData)) {
+            instruments = cellData;
+        } else if (typeof cellData === 'object' && cellData.instrument) {
+            instruments = [cellData.instrument];
+        } else if (cellData === 1) {
+            instruments = ['Synth'];
+        }
 
-        // Store individual action instead of full grid snapshot
+        // const targetInstrument = instrument || 'Synth'; // Already validated above
+        
+        // Toggle logic
+        const index = instruments.indexOf(targetInstrument);
+        if (index > -1) {
+            // Remove if present
+            instruments.splice(index, 1);
+        } else {
+            // Add if absent
+            instruments.push(targetInstrument);
+        }
+
+        // Store back in grid (optimization: store 0 if empty)
+        room.grid[row][col] = instruments.length > 0 ? instruments : 0;
+
+        // Store individual action
         const action = {
             row,
             col,
-            active: room.grid[row][col],
+            active: room.grid[row][col], // Now an Array or 0
             timestamp: Date.now()
         };
         room.history.push(action);
@@ -109,7 +145,7 @@ io.on('connection', (socket) => {
         room.grid = stateData.grid;
         room.history = stateData.history;
 
-        console.log(`State imported to room ${roomId}`);
+
 
         // Broadcast the new state to all clients in the room
         io.to(roomId).emit('initial-state', room);

@@ -35,10 +35,22 @@
         <div id="sequencer-container"></div>
 
         <div id="controls">
-            <!-- Play / Pause -->
+            <!-- Play / Pause & Instruments -->
             <div class="control-section">
                 <button id="audioToggleBtn" class="btn-play">INICIAR ÁUDIO 🔊</button>
-                <div style="font-size: 0.8rem; color: #888;">BPM: 120</div>
+                
+                <div style="margin-top: 10px; display: flex; flex-direction: column; gap: 5px;">
+                    <label for="instrumentSelect" style="font-size: 0.8rem; color: #ddd;">Instrumento:</label>
+                    <select id="instrumentSelect" style="padding: 5px; border-radius: 5px;">
+                        <option value="Synth">Sintetizador (Padrão)</option>
+                        <option value="Piano">Piano</option>
+                        <option value="Guitar">Violão</option>
+                        <option value="ElectricGuitar">Guitarra Elétrica</option>
+                        <option value="Saxophone">Saxofone</option>
+                    </select>
+                </div>
+
+                <div style="font-size: 0.8rem; color: #888; margin-top: 10px;">BPM: 120</div>
             </div>
 
             <!-- Time Machine -->

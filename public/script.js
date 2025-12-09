@@ -38,6 +38,7 @@ const replayCounter = document.getElementById('replayCounter');
 const exportBtn = document.getElementById('exportBtn');
 const importBtn = document.getElementById('importBtn');
 const importFileInput = document.getElementById('importFileInput');
+const instrumentSelect = document.getElementById('instrumentSelect');
 
 // --- 0. Lógica de Lobby / Sala ---
 
@@ -77,8 +78,12 @@ function joinRoom(roomName) {
 
 
 // --- 1. Interface ---
+let cellElements = []; // Cache to store DOM elements
+
 function buildInterface() {
     containerDiv.innerHTML = '';
+    cellElements = Array(rows).fill().map(() => Array(cols).fill(null));
+
     for (let r = 0; r < rows; r++) {
         const rowDiv = document.createElement('div');
         rowDiv.classList.add('seq-row');
@@ -98,10 +103,21 @@ function buildInterface() {
             cell.id = `cell-${r}-${c}`;
             cell.addEventListener('click', () => {
                 if (mode === 'LIVE') {
-                    socket.emit('toggle-note', { row: r, col: c });
+                    const selectedInstrument = instrumentSelect.value;
+                    
+                    // Logic: Synth gets everything (including rows 8-9)
+                    // Others get only melody (rows 0-7)
+                    if (selectedInstrument !== 'Synth') {
+                        if (r >= 8) return; // Restrict percussion rows for non-Synth
+                    }
+
+                    socket.emit('toggle-note', { row: r, col: c, instrument: selectedInstrument });
                 }
             });
             cellsDiv.appendChild(cell);
+            
+            // Cache the element
+            cellElements[r][c] = cell;
         }
         rowDiv.appendChild(cellsDiv);
         containerDiv.appendChild(rowDiv);
@@ -110,14 +126,74 @@ function buildInterface() {
 buildInterface();
 
 function renderGrid(gridData) {
+    const currentInstrument = instrumentSelect ? instrumentSelect.value : 'Synth';
+
+    // Update Row Visibility based on Instrument
+    for (let r = 0; r < rows; r++) {
+         const rowDiv = containerDiv.children[r];
+         if (currentInstrument === 'Synth') {
+             // Synth sees all
+             rowDiv.classList.remove('disabled-row');
+         } else {
+             // Others only see melody
+             if (r >= 8) rowDiv.classList.add('disabled-row');
+             else rowDiv.classList.remove('disabled-row');
+         }
+    }
+
     for (let r = 0; r < rows; r++) {
         for (let c = 0; c < cols; c++) {
-            const cell = document.getElementById(`cell-${r}-${c}`);
-            const isActive = gridData[r][c] === 1;
-            if (isActive) cell.classList.add('active');
-            else cell.classList.remove('active');
+            // Use cached element
+            const cell = cellElements[r][c];
+            if (!cell) continue; // Safety check
+
+            const cellData = gridData[r][c];
+            
+            // Normalize cell instruments to Set for easy lookup
+            let cellInstruments = new Set();
+            
+            if (!cellData) {
+                // empty
+            } else if (Array.isArray(cellData)) {
+                cellData.forEach(inst => cellInstruments.add(inst));
+            } else if (typeof cellData === 'object' && cellData.instrument) {
+                cellInstruments.add(cellData.instrument);
+            } else if (cellData === 1) {
+                cellInstruments.add('Synth');
+            }
+
+            // Check if active (truthy) and contains current instrument
+            const isActive = cellInstruments.has(currentInstrument);
+            const instClass = `inst-${currentInstrument.toLowerCase()}`;
+            
+            // Smart update: Only modify classes if needed
+            if (isActive) {
+                if (!cell.classList.contains('active')) {
+                    cell.classList.add('active');
+                }
+                if (!cell.classList.contains(instClass)) {
+                    cell.classList.add(instClass);
+                }
+            } else {
+                if (cell.classList.contains('active')) {
+                    cell.classList.remove('active');
+                }
+                // To be safe and clean: if not active in ANY way for THIS instrument, remove this instrument's class.
+                if (cell.classList.contains(instClass)) {
+                    cell.classList.remove(instClass);
+                }
+            }
         }
     }
+}
+
+// Add listener to update view when changing instrument
+if (instrumentSelect) {
+    instrumentSelect.addEventListener('change', () => {
+        if (mode === 'LIVE') renderGrid(currentGrid);
+        updateUIState();
+        document.body.focus();
+    });
 }
 
 // --- 2. Socket ---
@@ -244,11 +320,93 @@ audioBtn.addEventListener('click', async () => {
 });
 
 // --- 4. Motor de Áudio ---
-const melodySynth = new Tone.PolySynth(Tone.Synth, {
-    oscillator: { type: "square" },
-    envelope: { attack: 0.01, decay: 0.1, sustain: 0.1, release: 1 },
-    volume: -12
-}).toDestination();
+const InstrumentManager = {
+    synths: {},
+
+    init() {
+        // Create synths for all available types
+        this.synths['Synth'] = new Tone.PolySynth(Tone.Synth, {
+             oscillator: { type: "square" },
+             envelope: { attack: 0.01, decay: 0.1, sustain: 0.1, release: 1 },
+             volume: -12
+        }).toDestination();
+
+
+
+        // PIANO (Salamander)
+        this.synths['Piano'] = new Tone.Sampler({
+            urls: {
+                "A0": "A0.mp3",
+                "C1": "C1.mp3", "D#1": "Ds1.mp3", "F#1": "Fs1.mp3", "A1": "A1.mp3",
+                "C2": "C2.mp3", "D#2": "Ds2.mp3", "F#2": "Fs2.mp3", "A2": "A2.mp3",
+                "C3": "C3.mp3", "D#3": "Ds3.mp3", "F#3": "Fs3.mp3", "A3": "A3.mp3",
+                "C4": "C4.mp3", "D#4": "Ds4.mp3", "F#4": "Fs4.mp3", "A4": "A4.mp3",
+                "C5": "C5.mp3", "D#5": "Ds5.mp3", "F#5": "Fs5.mp3", "A5": "A5.mp3",
+                "C6": "C6.mp3", "D#6": "Ds6.mp3", "F#6": "Fs6.mp3", "A6": "A6.mp3",
+                "C7": "C7.mp3", "D#7": "Ds7.mp3", "F#7": "Fs7.mp3", "A7": "A7.mp3",
+                "C8": "C8.mp3"
+            },
+            release: 1,
+            baseUrl: "/samples/piano/"
+        }).toDestination();
+        
+        // GUITAR (Acoustic)
+        this.synths['Guitar'] = new Tone.Sampler({
+            urls: {
+                "A2": "A2.wav", "C3": "C3.wav", "D#3": "Ds3.wav", "F#3": "Fs3.wav", "A3": "A3.wav",
+                "C4": "C4.wav", "D#4": "Ds4.wav", "F#4": "Fs4.wav", "A4": "A4.wav"
+            },
+            release: 1,
+            baseUrl: "/samples/guitar-acoustic/"
+        }).toDestination();
+        // ELECTRIC GUITAR
+        this.synths['ElectricGuitar'] = new Tone.Sampler({
+            urls: {
+                "A2": "A2.wav", "C3": "C3.wav", "D#3": "Ds3.wav", "F#3": "Fs3.wav", "A3": "A3.wav",
+                "C4": "C4.wav", "D#4": "Ds4.wav", "F#4": "Fs4.wav", "A4": "A4.wav", "C5": "C5.wav", 
+                "D#5": "Ds5.wav", "F#5": "Fs5.wav", "A5": "A5.wav", "C6": "C6.wav"
+            },
+            release: 1,
+            baseUrl: "/samples/guitar-electric/"
+        }).toDestination();
+        
+        // SAXOPHONE
+        this.synths['Saxophone'] = new Tone.Sampler({
+            urls: {
+                "D#3": "Ds3.wav", "F#3": "Fs3.wav",
+                "C4": "C4.wav", "D#4": "Ds4.wav", "F#4": "Fs4.wav", "A4": "A4.wav",
+                "C5": "C5.wav", "D#5": "Ds5.wav", "F#5": "Fs5.wav", "A5": "A5.wav"
+            },
+            release: 1,
+            baseUrl: "/samples/saxophone/"
+        }).toDestination();
+
+
+    },
+
+    play(instrumentName, note, duration, time) {
+        // Fallback for legacy data (check if instrumentName is undefined or "1")
+        let name = instrumentName;
+        if (!name || name === 1) name = 'Synth';
+
+        const synth = this.synths[name];
+        if (synth) {
+            // Check if sample is loaded (only for samplers)
+            if (synth.loaded === false) {
+                 this.synths['Synth'].triggerAttackRelease(note, duration, time);
+                 return;
+            }
+            synth.triggerAttackRelease(note, duration, time);
+        } else {
+            // Fallback if instrument not found
+            this.synths['Synth'].triggerAttackRelease(note, duration, time);
+        }
+    }
+};
+
+// Initialize instruments immediately (AudioContext starts suspended)
+InstrumentManager.init();
+
 const kickSynth = new Tone.MembraneSynth({ volume: -6 }).toDestination();
 const snareSynth = new Tone.NoiseSynth({ volume: -12 }).toDestination();
 
@@ -275,8 +433,27 @@ function onStep(time) {
     const gridToPlay = (mode === 'LIVE') ? currentGrid : playbackGrid;
 
     for (let r = 0; r < rows; r++) {
-        if (gridToPlay[r][currentStep] === 1) {
-            if (r < 8) melodySynth.triggerAttackRelease(scaleNotes[r], "8n", time);
+        const cellData = gridToPlay[r][currentStep];
+        
+        // Check if active
+        if (cellData) {
+            let instruments = [];
+            
+            // Normalize
+            if (Array.isArray(cellData)) {
+                instruments = cellData;
+            } else if (typeof cellData === 'object' && cellData.instrument) {
+                instruments = [cellData.instrument];
+            } else if (cellData === 1) {
+                instruments = ['Synth'];
+            }
+
+            if (r < 8) {
+                // Play ALL instruments in the cell
+                instruments.forEach(inst => {
+                    InstrumentManager.play(inst, scaleNotes[r], "8n", time);
+                });
+            }
             else if (r === 8) snareSynth.triggerAttackRelease("8n", time);
             else if (r === 9) kickSynth.triggerAttackRelease("C1", "8n", time);
         }
@@ -287,7 +464,8 @@ function onStep(time) {
 
 function highlightColumn(colIndex, isHighlight) {
     for (let r = 0; r < rows; r++) {
-        const cell = document.getElementById(`cell-${r}-${colIndex}`);
+        // Use cached element
+        const cell = cellElements[r][colIndex];
         if (cell) {
             if (isHighlight) cell.classList.add('playing-col');
             else cell.classList.remove('playing-col');
