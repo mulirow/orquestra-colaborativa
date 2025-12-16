@@ -83,9 +83,46 @@ function joinRoom(roomName) {
 // --- 1. Interface ---
 let cellElements = []; // Cache to store DOM elements
 
+window.changePage = function (pageIndex) {
+    currentPage = pageIndex;
+
+    for (let i = 0; i < 4; i++) {
+        const ctrl = document.getElementById(`page-ctrl-${i}`);
+        if (i === currentPage) ctrl.classList.add('active');
+        else ctrl.classList.remove('active');
+    }
+
+    // Re-render
+    if (mode === 'LIVE') renderGrid(currentGrid);
+    else renderGrid(playbackGrid);
+}
+
+window.toggleBar = function (barIndex, event) {
+    if (event) event.stopPropagation();
+
+    enabledBars[barIndex] = !enabledBars[barIndex];
+
+    // Update UI
+    const control = document.getElementById(`page-ctrl-${barIndex}`);
+    const icon = control.querySelector('.toggle-tap');
+
+    if (enabledBars[barIndex]) {
+        control.classList.remove('muted');
+        icon.innerText = "🔊";
+    } else {
+        control.classList.add('muted');
+        icon.innerText = "🔇";
+    }
+
+    const hasActive = enabledBars.some(b => b);
+    if (!hasActive && isAudioStarted && !isPaused) {
+        audioBtn.click();
+    }
+}
+
 function buildInterface() {
     containerDiv.innerHTML = '';
-    cellElements = Array(rows).fill().map(() => Array(cols).fill(null));
+    cellElements = Array(rows).fill().map(() => Array(stepsPerPage).fill(null));
 
     for (let r = 0; r < rows; r++) {
         const rowDiv = document.createElement('div');
@@ -100,26 +137,26 @@ function buildInterface() {
 
         const cellsDiv = document.createElement('div');
         cellsDiv.classList.add('row-cells');
-        for (let c = 0; c < cols; c++) {
+
+        for (let c = 0; c < stepsPerPage; c++) {
             const cell = document.createElement('div');
             cell.classList.add('cell');
-            cell.id = `cell-${r}-${c}`;
+            cell.id = `cell-ui-${r}-${c}`;
             cell.addEventListener('click', () => {
                 if (mode === 'LIVE') {
                     const selectedInstrument = instrumentSelect.value;
+                    if (selectedInstrument !== 'Synth' && r >= 8) return;
 
-                    // Logic: Synth gets everything (including rows 8-9)
-                    // Others get only melody (rows 0-7)
-                    if (selectedInstrument !== 'Synth') {
-                        if (r >= 8) return; // Restrict percussion rows for non-Synth
-                    }
+                    const absoluteCol = (currentPage * stepsPerPage) + c;
 
-                    socket.emit('toggle-note', { row: r, col: c, instrument: selectedInstrument });
+                    socket.emit('toggle-note', {
+                        row: r,
+                        col: absoluteCol,
+                        instrument: selectedInstrument
+                    });
                 }
             });
             cellsDiv.appendChild(cell);
-
-            // Cache the element
             cellElements[r][c] = cell;
         }
         rowDiv.appendChild(cellsDiv);
