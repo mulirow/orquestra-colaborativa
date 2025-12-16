@@ -666,8 +666,8 @@ importFileInput.addEventListener('change', (event) => {
                 return;
             }
             for (let row of stateData.grid) {
-                if (row.length !== cols) {
-                    alert(`Arquivo inválido: grid deve ter ${cols} colunas`);
+                if (row.length !== totalSteps) {
+                    alert(`Arquivo inválido: grid deve ter ${totalSteps} colunas`);
                     return;
                 }
             }
