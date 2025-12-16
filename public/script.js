@@ -311,6 +311,23 @@ function resetCursor() {
 }
 
 audioBtn.addEventListener('click', async () => {
+    const isTryingToPlay = !isAudioStarted || isPaused;
+
+    if (isTryingToPlay) {
+        const isAnyBarActive = enabledBars.some(b => b);
+
+        if (!isAnyBarActive) {
+            enabledBars[currentPage] = true;
+
+            const control = document.getElementById(`page-ctrl-${currentPage}`);
+            if (control) {
+                const icon = control.querySelector('.toggle-tap');
+                control.classList.remove('muted');
+                icon.innerText = "🔊";
+            }
+        }
+    }
+
     if (!isAudioStarted) {
         await Tone.start();
         Tone.Transport.bpm.value = 120;
