@@ -279,13 +279,9 @@ function reconstructGridFromActions(actionIndex) {
     let startIndex;
 
     if (cachedReplayGrid && actionIndex > cachedReplayIndex) {
-        // Incremental: start from cached state
         grid = JSON.parse(JSON.stringify(cachedReplayGrid));
-        startIndex = cachedReplayIndex + 1;
     } else {
-        // From scratch: start with empty grid
-        grid = Array(rows).fill().map(() => Array(cols).fill(0));
-        startIndex = 0;
+        grid = Array(rows).fill().map(() => Array(totalSteps).fill(0));
     }
 
     // Apply actions incrementally
