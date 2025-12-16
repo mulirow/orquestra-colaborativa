@@ -326,9 +326,9 @@ const InstrumentManager = {
     init() {
         // Create synths for all available types
         this.synths['Synth'] = new Tone.PolySynth(Tone.Synth, {
-             oscillator: { type: "square" },
-             envelope: { attack: 0.01, decay: 0.1, sustain: 0.1, release: 1 },
-             volume: -12
+            oscillator: { type: "square" },
+            envelope: { attack: 0.01, decay: 0.1, sustain: 0.1, release: 1 },
+            volume: -12
         }).toDestination();
 
 
@@ -393,8 +393,8 @@ const InstrumentManager = {
         if (synth) {
             // Check if sample is loaded (only for samplers)
             if (synth.loaded === false) {
-                 this.synths['Synth'].triggerAttackRelease(note, duration, time);
-                 return;
+                this.synths['Synth'].triggerAttackRelease(note, duration, time);
+                return;
             }
             synth.triggerAttackRelease(note, duration, time);
         } else {
