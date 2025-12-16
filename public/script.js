@@ -167,6 +167,7 @@ buildInterface();
 
 function renderGrid(gridData) {
     const currentInstrument = instrumentSelect ? instrumentSelect.value : 'Synth';
+    const offset = currentPage * stepsPerPage;
 
     // Update Row Visibility based on Instrument
     for (let r = 0; r < rows; r++) {
@@ -180,19 +181,18 @@ function renderGrid(gridData) {
     }
 
     for (let r = 0; r < rows; r++) {
-        for (let c = 0; c < cols; c++) {
+        for (let c = 0; c < stepsPerPage; c++) {
             // Use cached element
             const cell = cellElements[r][c];
             if (!cell) continue; // Safety check
+            if (!gridData[r] || gridData[r].length <= offset + c) continue;
 
-            const cellData = gridData[r][c];
+            const cellData = gridData[r][offset + c];
 
             // Normalize cell instruments to Set for easy lookup
             let cellInstruments = new Set();
 
-            if (!cellData) {
-                // empty
-            } else if (Array.isArray(cellData)) {
+            if (Array.isArray(cellData)) {
                 cellData.forEach(inst => cellInstruments.add(inst));
             } else if (typeof cellData === 'object' && cellData.instrument) {
                 cellInstruments.add(cellData.instrument);
