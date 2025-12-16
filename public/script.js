@@ -451,64 +451,82 @@ const kickSynth = new Tone.MembraneSynth({ volume: -6 }).toDestination();
 const snareSynth = new Tone.NoiseSynth({ volume: -12 }).toDestination();
 
 function onStep(time) {
-    let prevStep = (currentStep - 1 + cols) % cols;
-    highlightColumn(prevStep, false);
-    highlightColumn(currentStep, true);
+    const playingBarIndex = Math.floor(currentStep / stepsPerPage);
 
-    if (mode === 'CYCLIC_REPLAY' && currentStep === 0) {
-        if (cyclicStopRequest) {
-            endReplay();
-        } else {
-            replayIndex += 4;
-            if (replayIndex >= historyLog.length - 1) {
-                replayIndex = historyLog.length - 1;
-                cyclicStopRequest = true;
+    for (let i = 0; i < 4; i++) {
+        const ctrl = document.getElementById(`page-ctrl-${i}`);
+        if (i === playingBarIndex) ctrl.classList.add('playing-now');
+        else ctrl.classList.remove('playing-now');
+    }
+
+    let prevStep = (currentStep - 1 + totalSteps) % totalSteps;
+    document.querySelectorAll('.playing-col').forEach(el => el.classList.remove('playing-col'));
+
+    if (enabledBars[playingBarIndex]) {
+        if (playingBarIndex !== currentPage) {
+            changePage(playingBarIndex);
+        }
+
+        highlightColumn(currentStep, true);
+
+        const gridToPlay = (mode === 'LIVE') ? currentGrid : playbackGrid;
+        for (let r = 0; r < rows; r++) {
+            if (!gridToPlay[r]) continue;
+            const cellData = gridToPlay[r][currentStep];
+            if (cellData) {
+                let instruments = [];
+                if (Array.isArray(cellData)) {
+                    instruments = cellData;
+                } else if (typeof cellData === 'object' && cellData.instrument) {
+                    instruments = [cellData.instrument];
+                } else if (cellData === 1) {
+                    instruments = ['Synth'];
+                }
+
+                if (r < 8) {
+                    instruments.forEach(inst => {
+                        InstrumentManager.play(inst, scaleNotes[r], "8n", time);
+                    });
+                }
+                else if (r === 8) snareSynth.triggerAttackRelease("8n", time);
+                else if (r === 9) kickSynth.triggerAttackRelease("C1", "8n", time);
             }
-            playbackGrid = reconstructGridFromActions(replayIndex);
-            renderGrid(playbackGrid);
-            updateProgressBar(replayIndex);
         }
     }
 
-    const gridToPlay = (mode === 'LIVE') ? currentGrid : playbackGrid;
+    let nextStepCandidate = (currentStep + 1) % totalSteps;
+    let safeGuard = 0;
 
-    for (let r = 0; r < rows; r++) {
-        const cellData = gridToPlay[r][currentStep];
+    while (safeGuard < 5) {
+        const barOfCandidate = Math.floor(nextStepCandidate / stepsPerPage);
 
-        // Check if active
-        if (cellData) {
-            let instruments = [];
-
-            // Normalize
-            if (Array.isArray(cellData)) {
-                instruments = cellData;
-            } else if (typeof cellData === 'object' && cellData.instrument) {
-                instruments = [cellData.instrument];
-            } else if (cellData === 1) {
-                instruments = ['Synth'];
-            }
-
-            if (r < 8) {
-                // Play ALL instruments in the cell
-                instruments.forEach(inst => {
-                    InstrumentManager.play(inst, scaleNotes[r], "8n", time);
-                });
-            }
-            else if (r === 8) snareSynth.triggerAttackRelease("8n", time);
-            else if (r === 9) kickSynth.triggerAttackRelease("C1", "8n", time);
+        if (enabledBars[barOfCandidate]) {
+            currentStep = nextStepCandidate;
+            return;
         }
+
+        const nextBarIndex = (barOfCandidate + 1) % 4;
+        nextStepCandidate = nextBarIndex * stepsPerPage;
+
+        safeGuard++;
     }
 
-    currentStep = (currentStep + 1) % cols;
+    currentStep = (currentStep + 1) % totalSteps;
 }
 
 function highlightColumn(colIndex, isHighlight) {
-    for (let r = 0; r < rows; r++) {
-        // Use cached element
-        const cell = cellElements[r][colIndex];
-        if (cell) {
-            if (isHighlight) cell.classList.add('playing-col');
-            else cell.classList.remove('playing-col');
+    const startCol = currentPage * stepsPerPage;
+    const endCol = startCol + stepsPerPage;
+
+    if (colIndex >= startCol && colIndex < endCol) {
+        const relativeCol = colIndex - startCol;
+
+        for (let r = 0; r < rows; r++) {
+            const cell = cellElements[r][relativeCol];
+            if (cell) {
+                if (isHighlight) cell.classList.add('playing-col');
+                else cell.classList.remove('playing-col');
+            }
         }
     }
 }
