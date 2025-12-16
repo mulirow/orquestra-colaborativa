@@ -206,20 +206,9 @@ function renderGrid(gridData) {
 
             // Smart update: Only modify classes if needed
             if (isActive) {
-                if (!cell.classList.contains('active')) {
-                    cell.classList.add('active');
-                }
-                if (!cell.classList.contains(instClass)) {
-                    cell.classList.add(instClass);
-                }
+                cell.classList.add('active', instClass);
             } else {
-                if (cell.classList.contains('active')) {
-                    cell.classList.remove('active');
-                }
-                // To be safe and clean: if not active in ANY way for THIS instrument, remove this instrument's class.
-                if (cell.classList.contains(instClass)) {
-                    cell.classList.remove(instClass);
-                }
+                cell.classList.remove('active', instClass);
             }
         }
     }
