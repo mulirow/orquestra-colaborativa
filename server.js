@@ -12,7 +12,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 // Constantes Globais
 // TO-DO: deixar constantes globais dinâmicas por sala
 const ROWS = 10;
-const COLS = 16;
+const COLS = 64;
 
 // ARMAZENAMENTO DAS SALAS
 // Estrutura: { 'nome-da-sala': { grid: [...], history: [...] } }
