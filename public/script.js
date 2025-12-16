@@ -170,15 +170,13 @@ function renderGrid(gridData) {
 
     // Update Row Visibility based on Instrument
     for (let r = 0; r < rows; r++) {
-         const rowDiv = containerDiv.children[r];
-         if (currentInstrument === 'Synth') {
-             // Synth sees all
-             rowDiv.classList.remove('disabled-row');
-         } else {
-             // Others only see melody
-             if (r >= 8) rowDiv.classList.add('disabled-row');
-             else rowDiv.classList.remove('disabled-row');
-         }
+        const rowDiv = containerDiv.children[r];
+        if (currentInstrument === 'Synth') {
+            rowDiv.classList.remove('disabled-row');
+        } else {
+            if (r >= 8) rowDiv.classList.add('disabled-row');
+            else rowDiv.classList.remove('disabled-row');
+        }
     }
 
     for (let r = 0; r < rows; r++) {
