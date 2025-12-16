@@ -32,13 +32,36 @@
             <div id="statusText">AGUARDANDO INÍCIO...</div>
         </div>
 
+        <div class="pagination-bar">
+            <!-- Bar 1 -->
+            <div class="page-control active" id="page-ctrl-0">
+                <span class="view-tap" onclick="changePage(0)">BAR 1</span>
+                <span class="toggle-tap" onclick="toggleBar(0, event)">🔊</span>
+            </div>
+            <!-- Bar 2 -->
+            <div class="page-control" id="page-ctrl-1">
+                <span class="view-tap" onclick="changePage(1)">BAR 2</span>
+                <span class="toggle-tap" onclick="toggleBar(1, event)">🔊</span>
+            </div>
+            <!-- Bar 3 -->
+            <div class="page-control" id="page-ctrl-2">
+                <span class="view-tap" onclick="changePage(2)">BAR 3</span>
+                <span class="toggle-tap" onclick="toggleBar(2, event)">🔊</span>
+            </div>
+            <!-- Bar 4 -->
+            <div class="page-control" id="page-ctrl-3">
+                <span class="view-tap" onclick="changePage(3)">BAR 4</span>
+                <span class="toggle-tap" onclick="toggleBar(3, event)">🔊</span>
+            </div>
+        </div>
+
         <div id="sequencer-container"></div>
 
         <div id="controls">
             <!-- Play / Pause & Instruments -->
             <div class="control-section">
                 <button id="audioToggleBtn" class="btn-play">INICIAR ÁUDIO 🔊</button>
-                
+
                 <div style="margin-top: 10px; display: flex; flex-direction: column; gap: 5px;">
                     <label for="instrumentSelect" style="font-size: 0.8rem; color: #ddd;">Instrumento:</label>
                     <select id="instrumentSelect" style="padding: 5px; border-radius: 5px;">

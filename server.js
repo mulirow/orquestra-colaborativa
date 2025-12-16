@@ -12,7 +12,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 // Constantes Globais
 // TO-DO: deixar constantes globais dinâmicas por sala
 const ROWS = 10;
-const COLS = 16;
+const COLS = 64;
 
 // ARMAZENAMENTO DAS SALAS
 // Estrutura: { 'nome-da-sala': { grid: [...], history: [...] } }
@@ -58,14 +58,14 @@ io.on('connection', (socket) => {
 
         // Initialize cell data if needed or normalize to array
         let cellData = room.grid[row][col];
-        
+
         // Normalize:
         // 0 -> []
         // { instrument: 'X' } -> ['X']
         // 1 -> ['Synth']
         // Array -> Array
         let instruments = [];
-        
+
         if (!cellData) {
             instruments = [];
         } else if (Array.isArray(cellData)) {
@@ -77,7 +77,7 @@ io.on('connection', (socket) => {
         }
 
         // const targetInstrument = instrument || 'Synth'; // Already validated above
-        
+
         // Toggle logic
         const index = instruments.indexOf(targetInstrument);
         if (index > -1) {

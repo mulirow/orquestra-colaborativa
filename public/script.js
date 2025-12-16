@@ -2,19 +2,22 @@ const socket = io();
 
 // --- Configuração ---
 const rows = 10;
-const cols = 16;
+const totalSteps = 64;
+const stepsPerPage = 16
 const scaleLabels = ["C5", "A4", "G4", "E4", "D4", "C4", "A3", "G3", "SNARE", "KICK"];
 const scaleNotes = ["C5", "A4", "G4", "E4", "D4", "C4", "A3", "G3"];
 
 // --- Estado ---
-let currentGrid = Array(rows).fill().map(() => Array(cols).fill(0));
-let historyLog = [];  // Now stores actions: [{row, col, active, timestamp}, ...]
+let currentGrid = Array(rows).fill().map(() => Array(totalSteps).fill(0));
+let enabledBars = [true, true, true, true];
+let historyLog = [];
 let playbackGrid = [];
 
 let mode = 'LIVE';
 let isAudioStarted = false;
 let isPaused = false;
 let currentStep = 0;
+let currentPage = 0;
 
 let replayIndex = 0;
 let linearTimeout = null;
@@ -80,9 +83,46 @@ function joinRoom(roomName) {
 // --- 1. Interface ---
 let cellElements = []; // Cache to store DOM elements
 
+window.changePage = function (pageIndex) {
+    currentPage = pageIndex;
+
+    for (let i = 0; i < 4; i++) {
+        const ctrl = document.getElementById(`page-ctrl-${i}`);
+        if (i === currentPage) ctrl.classList.add('active');
+        else ctrl.classList.remove('active');
+    }
+
+    // Re-render
+    if (mode === 'LIVE') renderGrid(currentGrid);
+    else renderGrid(playbackGrid);
+}
+
+window.toggleBar = function (barIndex, event) {
+    if (event) event.stopPropagation();
+
+    enabledBars[barIndex] = !enabledBars[barIndex];
+
+    // Update UI
+    const control = document.getElementById(`page-ctrl-${barIndex}`);
+    const icon = control.querySelector('.toggle-tap');
+
+    if (enabledBars[barIndex]) {
+        control.classList.remove('muted');
+        icon.innerText = "🔊";
+    } else {
+        control.classList.add('muted');
+        icon.innerText = "🔇";
+    }
+
+    const hasActive = enabledBars.some(b => b);
+    if (!hasActive && isAudioStarted && !isPaused) {
+        audioBtn.click();
+    }
+}
+
 function buildInterface() {
     containerDiv.innerHTML = '';
-    cellElements = Array(rows).fill().map(() => Array(cols).fill(null));
+    cellElements = Array(rows).fill().map(() => Array(stepsPerPage).fill(null));
 
     for (let r = 0; r < rows; r++) {
         const rowDiv = document.createElement('div');
@@ -97,26 +137,26 @@ function buildInterface() {
 
         const cellsDiv = document.createElement('div');
         cellsDiv.classList.add('row-cells');
-        for (let c = 0; c < cols; c++) {
+
+        for (let c = 0; c < stepsPerPage; c++) {
             const cell = document.createElement('div');
             cell.classList.add('cell');
-            cell.id = `cell-${r}-${c}`;
+            cell.id = `cell-ui-${r}-${c}`;
             cell.addEventListener('click', () => {
                 if (mode === 'LIVE') {
                     const selectedInstrument = instrumentSelect.value;
-                    
-                    // Logic: Synth gets everything (including rows 8-9)
-                    // Others get only melody (rows 0-7)
-                    if (selectedInstrument !== 'Synth') {
-                        if (r >= 8) return; // Restrict percussion rows for non-Synth
-                    }
+                    if (selectedInstrument !== 'Synth' && r >= 8) return;
 
-                    socket.emit('toggle-note', { row: r, col: c, instrument: selectedInstrument });
+                    const absoluteCol = (currentPage * stepsPerPage) + c;
+
+                    socket.emit('toggle-note', {
+                        row: r,
+                        col: absoluteCol,
+                        instrument: selectedInstrument
+                    });
                 }
             });
             cellsDiv.appendChild(cell);
-            
-            // Cache the element
             cellElements[r][c] = cell;
         }
         rowDiv.appendChild(cellsDiv);
@@ -127,34 +167,32 @@ buildInterface();
 
 function renderGrid(gridData) {
     const currentInstrument = instrumentSelect ? instrumentSelect.value : 'Synth';
+    const offset = currentPage * stepsPerPage;
 
     // Update Row Visibility based on Instrument
     for (let r = 0; r < rows; r++) {
-         const rowDiv = containerDiv.children[r];
-         if (currentInstrument === 'Synth') {
-             // Synth sees all
-             rowDiv.classList.remove('disabled-row');
-         } else {
-             // Others only see melody
-             if (r >= 8) rowDiv.classList.add('disabled-row');
-             else rowDiv.classList.remove('disabled-row');
-         }
+        const rowDiv = containerDiv.children[r];
+        if (currentInstrument === 'Synth') {
+            rowDiv.classList.remove('disabled-row');
+        } else {
+            if (r >= 8) rowDiv.classList.add('disabled-row');
+            else rowDiv.classList.remove('disabled-row');
+        }
     }
 
     for (let r = 0; r < rows; r++) {
-        for (let c = 0; c < cols; c++) {
+        for (let c = 0; c < stepsPerPage; c++) {
             // Use cached element
             const cell = cellElements[r][c];
             if (!cell) continue; // Safety check
+            if (!gridData[r] || gridData[r].length <= offset + c) continue;
 
-            const cellData = gridData[r][c];
-            
+            const cellData = gridData[r][offset + c];
+
             // Normalize cell instruments to Set for easy lookup
             let cellInstruments = new Set();
-            
-            if (!cellData) {
-                // empty
-            } else if (Array.isArray(cellData)) {
+
+            if (Array.isArray(cellData)) {
                 cellData.forEach(inst => cellInstruments.add(inst));
             } else if (typeof cellData === 'object' && cellData.instrument) {
                 cellInstruments.add(cellData.instrument);
@@ -165,23 +203,12 @@ function renderGrid(gridData) {
             // Check if active (truthy) and contains current instrument
             const isActive = cellInstruments.has(currentInstrument);
             const instClass = `inst-${currentInstrument.toLowerCase()}`;
-            
+
             // Smart update: Only modify classes if needed
             if (isActive) {
-                if (!cell.classList.contains('active')) {
-                    cell.classList.add('active');
-                }
-                if (!cell.classList.contains(instClass)) {
-                    cell.classList.add(instClass);
-                }
+                cell.classList.add('active', instClass);
             } else {
-                if (cell.classList.contains('active')) {
-                    cell.classList.remove('active');
-                }
-                // To be safe and clean: if not active in ANY way for THIS instrument, remove this instrument's class.
-                if (cell.classList.contains(instClass)) {
-                    cell.classList.remove(instClass);
-                }
+                cell.classList.remove('active', instClass);
             }
         }
     }
@@ -252,13 +279,9 @@ function reconstructGridFromActions(actionIndex) {
     let startIndex;
 
     if (cachedReplayGrid && actionIndex > cachedReplayIndex) {
-        // Incremental: start from cached state
         grid = JSON.parse(JSON.stringify(cachedReplayGrid));
-        startIndex = cachedReplayIndex + 1;
     } else {
-        // From scratch: start with empty grid
-        grid = Array(rows).fill().map(() => Array(cols).fill(0));
-        startIndex = 0;
+        grid = Array(rows).fill().map(() => Array(totalSteps).fill(0));
     }
 
     // Apply actions incrementally
@@ -288,6 +311,23 @@ function resetCursor() {
 }
 
 audioBtn.addEventListener('click', async () => {
+    const isTryingToPlay = !isAudioStarted || isPaused;
+
+    if (isTryingToPlay) {
+        const isAnyBarActive = enabledBars.some(b => b);
+
+        if (!isAnyBarActive) {
+            enabledBars[currentPage] = true;
+
+            const control = document.getElementById(`page-ctrl-${currentPage}`);
+            if (control) {
+                const icon = control.querySelector('.toggle-tap');
+                control.classList.remove('muted');
+                icon.innerText = "🔊";
+            }
+        }
+    }
+
     if (!isAudioStarted) {
         await Tone.start();
         Tone.Transport.bpm.value = 120;
@@ -326,9 +366,9 @@ const InstrumentManager = {
     init() {
         // Create synths for all available types
         this.synths['Synth'] = new Tone.PolySynth(Tone.Synth, {
-             oscillator: { type: "square" },
-             envelope: { attack: 0.01, decay: 0.1, sustain: 0.1, release: 1 },
-             volume: -12
+            oscillator: { type: "square" },
+            envelope: { attack: 0.01, decay: 0.1, sustain: 0.1, release: 1 },
+            volume: -12
         }).toDestination();
 
 
@@ -349,7 +389,7 @@ const InstrumentManager = {
             release: 1,
             baseUrl: "/samples/piano/"
         }).toDestination();
-        
+
         // GUITAR (Acoustic)
         this.synths['Guitar'] = new Tone.Sampler({
             urls: {
@@ -363,13 +403,13 @@ const InstrumentManager = {
         this.synths['ElectricGuitar'] = new Tone.Sampler({
             urls: {
                 "A2": "A2.wav", "C3": "C3.wav", "D#3": "Ds3.wav", "F#3": "Fs3.wav", "A3": "A3.wav",
-                "C4": "C4.wav", "D#4": "Ds4.wav", "F#4": "Fs4.wav", "A4": "A4.wav", "C5": "C5.wav", 
+                "C4": "C4.wav", "D#4": "Ds4.wav", "F#4": "Fs4.wav", "A4": "A4.wav", "C5": "C5.wav",
                 "D#5": "Ds5.wav", "F#5": "Fs5.wav", "A5": "A5.wav", "C6": "C6.wav"
             },
             release: 1,
             baseUrl: "/samples/guitar-electric/"
         }).toDestination();
-        
+
         // SAXOPHONE
         this.synths['Saxophone'] = new Tone.Sampler({
             urls: {
@@ -393,8 +433,8 @@ const InstrumentManager = {
         if (synth) {
             // Check if sample is loaded (only for samplers)
             if (synth.loaded === false) {
-                 this.synths['Synth'].triggerAttackRelease(note, duration, time);
-                 return;
+                this.synths['Synth'].triggerAttackRelease(note, duration, time);
+                return;
             }
             synth.triggerAttackRelease(note, duration, time);
         } else {
@@ -411,64 +451,82 @@ const kickSynth = new Tone.MembraneSynth({ volume: -6 }).toDestination();
 const snareSynth = new Tone.NoiseSynth({ volume: -12 }).toDestination();
 
 function onStep(time) {
-    let prevStep = (currentStep - 1 + cols) % cols;
-    highlightColumn(prevStep, false);
-    highlightColumn(currentStep, true);
+    const playingBarIndex = Math.floor(currentStep / stepsPerPage);
 
-    if (mode === 'CYCLIC_REPLAY' && currentStep === 0) {
-        if (cyclicStopRequest) {
-            endReplay();
-        } else {
-            replayIndex += 4;
-            if (replayIndex >= historyLog.length - 1) {
-                replayIndex = historyLog.length - 1;
-                cyclicStopRequest = true;
+    for (let i = 0; i < 4; i++) {
+        const ctrl = document.getElementById(`page-ctrl-${i}`);
+        if (i === playingBarIndex) ctrl.classList.add('playing-now');
+        else ctrl.classList.remove('playing-now');
+    }
+
+    let prevStep = (currentStep - 1 + totalSteps) % totalSteps;
+    document.querySelectorAll('.playing-col').forEach(el => el.classList.remove('playing-col'));
+
+    if (enabledBars[playingBarIndex]) {
+        if (playingBarIndex !== currentPage) {
+            changePage(playingBarIndex);
+        }
+
+        highlightColumn(currentStep, true);
+
+        const gridToPlay = (mode === 'LIVE') ? currentGrid : playbackGrid;
+        for (let r = 0; r < rows; r++) {
+            if (!gridToPlay[r]) continue;
+            const cellData = gridToPlay[r][currentStep];
+            if (cellData) {
+                let instruments = [];
+                if (Array.isArray(cellData)) {
+                    instruments = cellData;
+                } else if (typeof cellData === 'object' && cellData.instrument) {
+                    instruments = [cellData.instrument];
+                } else if (cellData === 1) {
+                    instruments = ['Synth'];
+                }
+
+                if (r < 8) {
+                    instruments.forEach(inst => {
+                        InstrumentManager.play(inst, scaleNotes[r], "8n", time);
+                    });
+                }
+                else if (r === 8) snareSynth.triggerAttackRelease("8n", time);
+                else if (r === 9) kickSynth.triggerAttackRelease("C1", "8n", time);
             }
-            playbackGrid = reconstructGridFromActions(replayIndex);
-            renderGrid(playbackGrid);
-            updateProgressBar(replayIndex);
         }
     }
 
-    const gridToPlay = (mode === 'LIVE') ? currentGrid : playbackGrid;
+    let nextStepCandidate = (currentStep + 1) % totalSteps;
+    let safeGuard = 0;
 
-    for (let r = 0; r < rows; r++) {
-        const cellData = gridToPlay[r][currentStep];
-        
-        // Check if active
-        if (cellData) {
-            let instruments = [];
-            
-            // Normalize
-            if (Array.isArray(cellData)) {
-                instruments = cellData;
-            } else if (typeof cellData === 'object' && cellData.instrument) {
-                instruments = [cellData.instrument];
-            } else if (cellData === 1) {
-                instruments = ['Synth'];
-            }
+    while (safeGuard < 5) {
+        const barOfCandidate = Math.floor(nextStepCandidate / stepsPerPage);
 
-            if (r < 8) {
-                // Play ALL instruments in the cell
-                instruments.forEach(inst => {
-                    InstrumentManager.play(inst, scaleNotes[r], "8n", time);
-                });
-            }
-            else if (r === 8) snareSynth.triggerAttackRelease("8n", time);
-            else if (r === 9) kickSynth.triggerAttackRelease("C1", "8n", time);
+        if (enabledBars[barOfCandidate]) {
+            currentStep = nextStepCandidate;
+            return;
         }
+
+        const nextBarIndex = (barOfCandidate + 1) % 4;
+        nextStepCandidate = nextBarIndex * stepsPerPage;
+
+        safeGuard++;
     }
 
-    currentStep = (currentStep + 1) % cols;
+    currentStep = (currentStep + 1) % totalSteps;
 }
 
 function highlightColumn(colIndex, isHighlight) {
-    for (let r = 0; r < rows; r++) {
-        // Use cached element
-        const cell = cellElements[r][colIndex];
-        if (cell) {
-            if (isHighlight) cell.classList.add('playing-col');
-            else cell.classList.remove('playing-col');
+    const startCol = currentPage * stepsPerPage;
+    const endCol = startCol + stepsPerPage;
+
+    if (colIndex >= startCol && colIndex < endCol) {
+        const relativeCol = colIndex - startCol;
+
+        for (let r = 0; r < rows; r++) {
+            const cell = cellElements[r][relativeCol];
+            if (cell) {
+                if (isHighlight) cell.classList.add('playing-col');
+                else cell.classList.remove('playing-col');
+            }
         }
     }
 }
@@ -608,8 +666,8 @@ importFileInput.addEventListener('change', (event) => {
                 return;
             }
             for (let row of stateData.grid) {
-                if (row.length !== cols) {
-                    alert(`Arquivo inválido: grid deve ter ${cols} colunas`);
+                if (row.length !== totalSteps) {
+                    alert(`Arquivo inválido: grid deve ter ${totalSteps} colunas`);
                     return;
                 }
             }
