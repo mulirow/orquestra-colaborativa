@@ -2,19 +2,22 @@ const socket = io();
 
 // --- Configuração ---
 const rows = 10;
-const cols = 16;
+const totalSteps = 64;
+const stepsPerPage = 16
 const scaleLabels = ["C5", "A4", "G4", "E4", "D4", "C4", "A3", "G3", "SNARE", "KICK"];
 const scaleNotes = ["C5", "A4", "G4", "E4", "D4", "C4", "A3", "G3"];
 
 // --- Estado ---
-let currentGrid = Array(rows).fill().map(() => Array(cols).fill(0));
-let historyLog = [];  // Now stores actions: [{row, col, active, timestamp}, ...]
+let currentGrid = Array(rows).fill().map(() => Array(totalSteps).fill(0));
+let enabledBars = [true, true, true, true];
+let historyLog = [];
 let playbackGrid = [];
 
 let mode = 'LIVE';
 let isAudioStarted = false;
 let isPaused = false;
 let currentStep = 0;
+let currentPage = 0;
 
 let replayIndex = 0;
 let linearTimeout = null;
