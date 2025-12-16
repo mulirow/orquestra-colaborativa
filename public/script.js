@@ -104,7 +104,7 @@ function buildInterface() {
             cell.addEventListener('click', () => {
                 if (mode === 'LIVE') {
                     const selectedInstrument = instrumentSelect.value;
-                    
+
                     // Logic: Synth gets everything (including rows 8-9)
                     // Others get only melody (rows 0-7)
                     if (selectedInstrument !== 'Synth') {
@@ -115,7 +115,7 @@ function buildInterface() {
                 }
             });
             cellsDiv.appendChild(cell);
-            
+
             // Cache the element
             cellElements[r][c] = cell;
         }
@@ -148,10 +148,10 @@ function renderGrid(gridData) {
             if (!cell) continue; // Safety check
 
             const cellData = gridData[r][c];
-            
+
             // Normalize cell instruments to Set for easy lookup
             let cellInstruments = new Set();
-            
+
             if (!cellData) {
                 // empty
             } else if (Array.isArray(cellData)) {
@@ -165,7 +165,7 @@ function renderGrid(gridData) {
             // Check if active (truthy) and contains current instrument
             const isActive = cellInstruments.has(currentInstrument);
             const instClass = `inst-${currentInstrument.toLowerCase()}`;
-            
+
             // Smart update: Only modify classes if needed
             if (isActive) {
                 if (!cell.classList.contains('active')) {
@@ -349,7 +349,7 @@ const InstrumentManager = {
             release: 1,
             baseUrl: "/samples/piano/"
         }).toDestination();
-        
+
         // GUITAR (Acoustic)
         this.synths['Guitar'] = new Tone.Sampler({
             urls: {
@@ -363,13 +363,13 @@ const InstrumentManager = {
         this.synths['ElectricGuitar'] = new Tone.Sampler({
             urls: {
                 "A2": "A2.wav", "C3": "C3.wav", "D#3": "Ds3.wav", "F#3": "Fs3.wav", "A3": "A3.wav",
-                "C4": "C4.wav", "D#4": "Ds4.wav", "F#4": "Fs4.wav", "A4": "A4.wav", "C5": "C5.wav", 
+                "C4": "C4.wav", "D#4": "Ds4.wav", "F#4": "Fs4.wav", "A4": "A4.wav", "C5": "C5.wav",
                 "D#5": "Ds5.wav", "F#5": "Fs5.wav", "A5": "A5.wav", "C6": "C6.wav"
             },
             release: 1,
             baseUrl: "/samples/guitar-electric/"
         }).toDestination();
-        
+
         // SAXOPHONE
         this.synths['Saxophone'] = new Tone.Sampler({
             urls: {
@@ -434,11 +434,11 @@ function onStep(time) {
 
     for (let r = 0; r < rows; r++) {
         const cellData = gridToPlay[r][currentStep];
-        
+
         // Check if active
         if (cellData) {
             let instruments = [];
-            
+
             // Normalize
             if (Array.isArray(cellData)) {
                 instruments = cellData;
